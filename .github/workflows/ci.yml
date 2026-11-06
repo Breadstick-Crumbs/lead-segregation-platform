@@ -24,7 +24,7 @@ jobs:
           --health-timeout 3s --health-retries 10
     env:
       ENVIRONMENT: test
-      DATABASE_URL: postgresql+asyncpg://leads:leads@localhost:5432/leads
+      DATABASE_URL: postgresql+psycopg://leads:leads@localhost:5432/leads
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v7

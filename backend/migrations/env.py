@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 import app.models  # noqa: F401  (registers all models on Base.metadata)
 from app.core.config import get_settings
-from app.db.base import Base
+from app.core.runtime import use_selector_event_loop_on_windows
+from app.db.base import Base, include_in_migrations
 
 config = context.config
 
@@ -27,6 +28,7 @@ def run_migrations_offline() -> None:
     context.configure(
         url=config.get_main_option("sqlalchemy.url"),
         target_metadata=target_metadata,
+        include_name=include_in_migrations,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -36,7 +38,9 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection, target_metadata=target_metadata, include_name=include_in_migrations
+    )
 
     with context.begin_transaction():
         context.run_migrations()
@@ -56,6 +60,7 @@ async def run_async_migrations() -> None:
 
 
 def run_migrations_online() -> None:
+    use_selector_event_loop_on_windows()
     asyncio.run(run_async_migrations())
 
 

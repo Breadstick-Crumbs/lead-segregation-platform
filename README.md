@@ -9,6 +9,7 @@ shows everything on a dashboard with reporting.
 - Scoring model: [docs/SCORING.md](docs/SCORING.md)
 - Stack and tooling: [docs/TECH_STACK.md](docs/TECH_STACK.md)
 - Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)
+- Ingestion and Meta/mailbox setup: [docs/INGESTION.md](docs/INGESTION.md)
 
 ## Quick start
 
@@ -19,6 +20,7 @@ cp .env.example backend/.env
 docker compose up -d postgres
 cd backend && uv sync && uv run alembic upgrade head && uv run python -m app.scripts.seed
 uv run fastapi dev app/main.py
+uv run procrastinate --app=app.workers.app.app worker   # second terminal: background jobs
 cd frontend && pnpm install && pnpm dev
 ```
 

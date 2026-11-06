@@ -5,7 +5,13 @@ from sqlalchemy import CheckConstraint, ForeignKey, Index, String, Text, UniqueC
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, CreatedAtMixin, UUIDPrimaryKeyMixin, str_enum, tz_datetime
-from app.models.enums import Channel, DeliveryStatus, MessageDirection
+from app.models.enums import (
+    Channel,
+    DeliveryStatus,
+    MessageDirection,
+    MessageKind,
+    TranscriptionStatus,
+)
 
 
 class Message(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
@@ -40,7 +46,19 @@ class Message(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     sender_address: Mapped[str] = mapped_column(String(320))  # email address or E.164 number
     subject: Mapped[str | None] = mapped_column(String(998))  # RFC 5322 line limit
     body_text: Mapped[str] = mapped_column(Text)
+    kind: Mapped[MessageKind] = mapped_column(
+        str_enum(MessageKind, "kind"),
+        default=MessageKind.TEXT,
+        server_default=MessageKind.TEXT.value,
+    )
+    media_id: Mapped[str | None] = mapped_column(String(200))  # WhatsApp media id
+    media_mime_type: Mapped[str | None] = mapped_column(String(100))
+    transcription_status: Mapped[TranscriptionStatus | None] = mapped_column(
+        str_enum(TranscriptionStatus, "transcription_status")
+    )
     is_auto_reply: Mapped[bool] = mapped_column(default=False, server_default="false")
+    # Inbound mail we must not answer automatically (lists, robots, opt-outs). Phase 4 checks it.
+    suppress_auto_reply: Mapped[bool] = mapped_column(default=False, server_default="false")
     sent_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )

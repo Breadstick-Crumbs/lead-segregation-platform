@@ -109,9 +109,20 @@ class AutoReplyTemplates(SettingsModel):
         return self
 
 
+class IngestionSettings(SettingsModel):
+    KEY: ClassVar[str] = "ingestion"
+
+    # A WhatsApp message joins the contact's open lead if their last message was this recent;
+    # otherwise it starts a new lead. (Email threads by In-Reply-To/References instead.)
+    whatsapp_conversation_hours: int = Field(24, ge=1, le=24 * 30)
+    # A newly added mailbox imports this far back, not the whole inbox.
+    initial_lookback_days: int = Field(1, ge=0, le=90)
+
+
 DEFAULT_SETTINGS: tuple[SettingsModel, ...] = (
     ScoringWeights(),
     ScoringThresholds(),
     ScoringKeywords(),
     AutoReplyTemplates(),
+    IngestionSettings(),
 )

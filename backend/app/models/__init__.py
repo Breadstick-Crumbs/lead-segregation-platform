@@ -7,10 +7,12 @@ from app.models.message import Message
 from app.models.notification import Notification
 from app.models.setting import AppSetting
 from app.models.user import RefreshToken, User
+from app.models.webhook import InboundWebhook
 
 __all__ = [
     "AppSetting",
     "Contact",
+    "InboundWebhook",
     "Lead",
     "LeadEvent",
     "LeadScore",

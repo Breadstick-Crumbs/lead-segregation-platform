@@ -9,7 +9,7 @@ Versions were verified against PyPI/npm on 2026-11-06. The lockfiles
 |---------|--------|-----|
 | Web framework | FastAPI 0.162 | Async, OpenAPI generation, dependency injection |
 | Validation/config | Pydantic 2.14 + pydantic-settings | Typed schemas and env-based settings |
-| ORM | SQLAlchemy 2.1 (async, `Mapped[]`) + asyncpg | Mature, typed, async |
+| ORM | SQLAlchemy 2.1 (async, `Mapped[]`) + psycopg 3 | Mature, typed, async; psycopg is shared with Procrastinate so jobs enqueue in the same transaction |
 | Migrations | Alembic 1.20 (async env) | Standard for SQLAlchemy |
 | Background jobs | **Procrastinate 3.10** (Postgres-backed) | No Redis; enqueue in the same transaction as the lead row; retries, locks and periodic tasks built in. (ARQ is maintenance-only; Celery isn't async-native.) |
 | Real-time | SSE (`sse-starlette`) + Postgres LISTEN/NOTIFY | One-way server→browser push without WebSocket infrastructure |

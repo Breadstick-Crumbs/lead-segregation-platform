@@ -3,13 +3,15 @@ and a per-test session inside a transaction that is rolled back afterwards."""
 
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
+from typing import Any
 
 import anyio
-import asyncpg
+import psycopg
 import pytest
 from alembic import command
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
@@ -37,12 +39,10 @@ async def _recreate_database(url: URL) -> None:
     admin_dsn = url.set(drivername="postgresql", database="postgres").render_as_string(
         hide_password=False
     )
-    conn = await asyncpg.connect(admin_dsn)
-    try:
+    # CREATE/DROP DATABASE can't run inside a transaction, hence autocommit.
+    async with await psycopg.AsyncConnection.connect(admin_dsn, autocommit=True) as conn:
         await conn.execute(f'DROP DATABASE IF EXISTS "{url.database}" WITH (FORCE)')
         await conn.execute(f'CREATE DATABASE "{url.database}"')
-    finally:
-        await conn.close()
 
 
 def _run_migrations(url: URL) -> None:
@@ -124,3 +124,14 @@ async def login(api: AsyncClient, email: str, password: str = TEST_PASSWORD) -> 
 
 def bearer(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
+
+
+async def queued_jobs(session: AsyncSession, task_name: str | None = None) -> list[dict[str, Any]]:
+    """Jobs waiting in procrastinate's queue, as seen inside the test's transaction."""
+    query = "SELECT task_name, args FROM procrastinate_jobs WHERE status = 'todo'"
+    params: dict[str, Any] = {}
+    if task_name is not None:
+        query += " AND task_name = :name"
+        params["name"] = task_name
+    rows = await session.execute(text(query + " ORDER BY id"), params)
+    return [{"task": row.task_name, "args": row.args} for row in rows]

@@ -49,6 +49,25 @@ class MessageDirection(StrEnum):
     OUTBOUND = "outbound"
 
 
+class MessageKind(StrEnum):
+    TEXT = "text"
+    VOICE = "voice"  # WhatsApp voice note / audio; body_text holds the transcript
+    IMAGE = "image"
+    VIDEO = "video"
+    DOCUMENT = "document"
+    INTERACTIVE = "interactive"  # button or list reply
+
+
+class TranscriptionStatus(StrEnum):
+    PENDING = "pending"
+    DONE = "done"
+    FAILED = "failed"
+
+
+class WebhookSource(StrEnum):
+    WHATSAPP = "whatsapp"
+
+
 class DeliveryStatus(StrEnum):
     RECEIVED = "received"
     QUEUED = "queued"

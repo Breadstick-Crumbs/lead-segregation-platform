@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging, get_logger
+from app.core.runtime import use_selector_event_loop_on_windows
 from app.core.security import hash_password
 from app.db.session import SessionFactory, engine
 from app.models import AppSetting, User
@@ -80,6 +81,7 @@ async def seed(settings: Settings) -> None:
 def main() -> None:
     settings = get_settings()
     configure_logging(settings.log_level, json_logs=settings.is_production)
+    use_selector_event_loop_on_windows()
     asyncio.run(seed(settings))
 
 

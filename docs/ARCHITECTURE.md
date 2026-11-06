@@ -113,12 +113,13 @@ Defined in `backend/app/models/`; the initial migration is the source of truth.
 | `refresh_tokens` | user_id, token_hash (SHA-256, unique), family_id, expires_at, revoked_at. Claimed with one atomic `UPDATE … RETURNING`; reuse of a rotated token revokes the family. |
 | `contacts` | name, email (unique, lower-case), phone_e164 (unique), company_name, company_domain. CHECK: email or phone present. |
 | `leads` | contact_id, source, category, score (0–100), priority, status, owner_id, language, summary, processing_state, processing_error, first_response_at, converted_at |
-| `messages` | lead_id, mailbox_id, channel, direction, external_id, thread_ref, sender_address, subject, body_text, is_auto_reply, sent_by_user_id, delivery_status, occurred_at. UNIQUE (channel, external_id); inbound rows must have an external_id (an email without Message-ID gets a synthesized one); at most one auto-reply per lead (partial unique index). |
+| `messages` | lead_id, mailbox_id, channel, direction, kind (text/voice/image/…), media_id, transcription_status, external_id, thread_ref, sender_address, subject, body_text, is_auto_reply, sent_by_user_id, delivery_status, occurred_at. UNIQUE (channel, external_id); inbound rows must have an external_id (an email without Message-ID gets a synthesized one); at most one auto-reply per lead (partial unique index). |
 | `lead_scores` | lead_id, total, breakdown (JSONB), rationale, model, prompt_version |
 | `lead_events` | lead_id, type, actor_id, payload (JSONB). Append-only audit trail. |
 | `notifications` | user_id, lead_id, kind, title, body, read_at (in-app only; email and Slack deliveries are lead events) |
 | `mailboxes` | name, email_address, imap/smtp host and port, username, auth_type (`password`/`oauth2_xoauth2`), encrypted_secret (Fernet), folder, uidvalidity, last_uid, last_polled_at, last_error, is_active |
 | `app_settings` | key, value (JSONB), updated_by_id. Validated by `app/schemas/app_settings.py`. |
+| `inbound_webhooks` | source, payload (JSONB), received_at, processed_at, error. Raw deliveries, stored before parsing. |
 
 `lead_events` powers response history and conversion tracking
 (time-to-first-response, status funnel).

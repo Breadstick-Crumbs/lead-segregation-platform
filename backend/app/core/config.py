@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     # Where the dashboard is served; the Microsoft sign-in callback redirects back here.
     frontend_url: str = "http://localhost:5173"
 
-    database_url: PostgresDsn = PostgresDsn("postgresql+asyncpg://leads:leads@localhost:5442/leads")
+    database_url: PostgresDsn = PostgresDsn("postgresql+psycopg://leads:leads@localhost:5442/leads")
 
     jwt_secret: SecretStr = SecretStr(DEV_JWT_SECRET)
     jwt_access_ttl_minutes: int = 15
@@ -41,6 +41,7 @@ class Settings(BaseSettings):
 
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-6-luna"
+    openai_transcription_model: str = "gpt-4o-transcribe"
 
     whatsapp_graph_version: str = "v26.0"
     whatsapp_phone_number_id: str | None = None

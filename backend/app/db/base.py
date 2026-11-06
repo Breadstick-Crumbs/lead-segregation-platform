@@ -53,3 +53,12 @@ def str_enum(enum_cls: type[StrEnum], name: str) -> Enum:
 
 def tz_datetime() -> DateTime:
     return DateTime(timezone=True)
+
+
+# Procrastinate owns its tables (created by its own migration). Alembic autogenerate and the
+# migration drift test must ignore them, or they'd propose dropping the job queue.
+EXTERNAL_TABLE_PREFIX = "procrastinate_"
+
+
+def include_in_migrations(name: str | None, type_: str, _parent_names: object) -> bool:
+    return not (type_ == "table" and name is not None and name.startswith(EXTERNAL_TABLE_PREFIX))
