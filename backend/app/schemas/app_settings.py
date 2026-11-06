@@ -3,9 +3,12 @@
 The defaults are the documented behaviour (docs/SCORING.md); the seed script writes them and
 admins change them later through the settings API."""
 
+import uuid
 from typing import ClassVar, Self
 
 from pydantic import BaseModel, Field, model_validator
+
+from app.schemas.user import NormalizedEmail
 
 
 class SettingsModel(BaseModel):
@@ -133,6 +136,18 @@ class SimilaritySettings(SettingsModel):
     duplicate_window_days: int = Field(7, ge=1, le=90)
 
 
+class NotificationSettings(SettingsModel):
+    """Who hears about high-priority leads, and how (docs/NOTIFICATIONS.md)."""
+
+    KEY: ClassVar[str] = "notifications"
+
+    # Emailed on critical leads and SLA breaches (sales managers; need not be users).
+    escalation_emails: list[NormalizedEmail] = Field(default_factory=list, max_length=50)
+    email_alerts: bool = True
+    # The mailbox alerts are sent from; None means the first active mailbox.
+    alert_mailbox_id: uuid.UUID | None = None
+
+
 DEFAULT_SETTINGS: tuple[SettingsModel, ...] = (
     ScoringWeights(),
     ScoringThresholds(),
@@ -140,4 +155,5 @@ DEFAULT_SETTINGS: tuple[SettingsModel, ...] = (
     AutoReplyTemplates(),
     IngestionSettings(),
     SimilaritySettings(),
+    NotificationSettings(),
 )

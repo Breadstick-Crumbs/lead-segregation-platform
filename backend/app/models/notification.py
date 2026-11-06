@@ -12,7 +12,10 @@ class Notification(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     """An in-app notification for one user. Email and Slack deliveries are logged as lead events."""
 
     __tablename__ = "notifications"
-    __table_args__ = (Index("ix_notifications_user_id_read_at", "user_id", "read_at"),)
+    __table_args__ = (
+        Index("ix_notifications_user_id_read_at", "user_id", "read_at"),
+        Index("ix_notifications_user_id_created_at", "user_id", "created_at"),
+    )
 
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     lead_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("leads.id", ondelete="CASCADE"))

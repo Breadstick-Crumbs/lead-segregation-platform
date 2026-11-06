@@ -51,6 +51,11 @@ class Settings(BaseSettings):
     whatsapp_app_secret: SecretStr | None = None
     whatsapp_verify_token: SecretStr | None = None
 
+    # Escalation channels. Incoming-webhook URLs carry their own credential, so they are
+    # secrets: Slack "Incoming Webhooks" and a Teams "Workflows" webhook.
+    slack_webhook_url: SecretStr | None = None
+    teams_webhook_url: SecretStr | None = None
+
     sentry_dsn: str | None = None
 
     # Used only by `python -m app.scripts.seed`.
@@ -70,6 +75,8 @@ class Settings(BaseSettings):
         "whatsapp_app_secret",
         "whatsapp_verify_token",
         "sentry_dsn",
+        "slack_webhook_url",
+        "teams_webhook_url",
         "seed_admin_password",
         "seed_demo_password",
         mode="before",

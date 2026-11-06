@@ -44,6 +44,7 @@ from app.schemas.app_settings import (
 from app.services.app_settings import load_settings
 from app.services.auto_reply import enqueue_auto_reply, wants_auto_reply
 from app.services.lead_queue import has_waiting_job
+from app.services.notifications import alert_for_priority, enqueue_alert
 from app.services.scoring import History, RuleSignals, ScoreResult, score_lead
 
 logger = get_logger(__name__)
@@ -229,6 +230,9 @@ class LeadPipeline:
             await self._messages.auto_reply_for(lead.id) is None
         ):
             await enqueue_auto_reply(self._session, lead.id)
+        alert = alert_for_priority(result.priority)
+        if alert is not None and analysis.category != LeadCategory.SPAM:
+            await enqueue_alert(self._session, lead.id, alert)  # raised once per kind
         await self._session.commit()
         logger.info(
             "lead_processed",

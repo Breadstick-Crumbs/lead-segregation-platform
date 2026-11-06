@@ -12,6 +12,7 @@ shows everything on a dashboard with reporting.
 - Ingestion and Meta/mailbox setup: [docs/INGESTION.md](docs/INGESTION.md)
 - AI pipeline, guarantees and classifier evaluation: [docs/AI_PIPELINE.md](docs/AI_PIPELINE.md)
 - Auto-reply (email and WhatsApp), at-most-once sending, delivery receipts: [docs/AUTO_REPLY.md](docs/AUTO_REPLY.md)
+- Notifications, escalation, SLA and the live stream: [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md)
 
 ## Quick start
 

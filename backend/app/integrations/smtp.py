@@ -17,6 +17,8 @@ from typing import Protocol
 
 import aiosmtplib
 
+from app.schemas.alerts import Alert
+
 SMTP_TIMEOUT_SECONDS = 30.0
 IMPLICIT_TLS_PORT = 465
 SMTP_TRANSIENT = range(400, 500)  # 4xx: try again later
@@ -73,6 +75,25 @@ def compose_reply(
     message["Auto-Submitted"] = "auto-replied"
     message["X-Auto-Response-Suppress"] = "All"  # Exchange/Outlook out-of-office replies
     message.set_content(body)
+    return message
+
+
+def compose_alert(
+    *, from_name: str, from_address: str, to_address: str, alert: Alert
+) -> EmailMessage:
+    """An internal alert email: plain text, marked auto-generated (RFC 3834)."""
+    message = EmailMessage()
+    message["From"] = Address(display_name=from_name, addr_spec=from_address)
+    message["To"] = to_address
+    message["Subject"] = " ".join(alert.title.split())
+    message["Date"] = format_datetime(datetime.now(UTC))
+    message["Message-ID"] = new_message_id(from_address)
+    message["Auto-Submitted"] = "auto-generated"
+    message["X-Auto-Response-Suppress"] = "All"
+    facts = "\n".join(f"{label}: {value}" for label, value in alert.facts)
+    message.set_content(
+        f"{alert.title}\n\n{facts}\n\n{alert.summary}\n\nOpen the lead: {alert.url}\n"
+    )
     return message
 
 

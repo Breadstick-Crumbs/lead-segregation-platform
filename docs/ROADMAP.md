@@ -9,9 +9,9 @@ Each phase ends with green checks (lint, types, tests, build) and a PR.
 | 1b | **Sign in with Microsoft** ★ | OIDC authorization-code flow with PKCE against Microsoft Entra ID (single tenant). Users are matched to admin-created accounts and linked by their Entra object ID. | Done (PR #1) |
 | 2 | Ingestion | `InboundMessage` contract; WhatsApp webhook (verify + signature check + dedup); IMAP mailbox poller; contact/lead/message upsert; Procrastinate setup. ★ **WhatsApp voice notes**: download the media and transcribe it with OpenAI speech-to-text (Arabic and English), so voice-only leads get scored like text. | Done (PR #2) |
 | 3 | AI pipeline | OpenAI classifier (structured output, versioned prompt), hybrid scorer, owner assignment, labelled fixture set and evaluation test. ★ **pgvector**: an embedding per lead powers "similar past leads" (feeds the previous-interactions score), cross-address duplicate detection, and "leads like this converted". | Done (PR #3) |
-| 4 | Auto-response | Channel senders (SMTP with threading, WhatsApp text); idempotent auto-reply for score > 20; per-language templates; delivery status | In progress |
-| 5 | Notifications | `Notifier` interface: in-app (SSE), email, Slack/Teams; thresholds; SLA escalation sweep | |
-| 6 | Dashboard | Login (password + "Sign in with Microsoft"), lead table, lead detail with similar leads, notifications bell, settings screens | |
+| 4 | Auto-response | Channel senders (SMTP with threading, WhatsApp text); idempotent auto-reply for score > 20; per-language templates; delivery status | Done (PR #4) |
+| 5 | Notifications | `Notifier` interface: in-app (SSE), email, Slack/Teams; thresholds; SLA escalation sweep | In progress |
+| 6 | Dashboard | Login (password + "Sign in with Microsoft"), lead table, lead detail with similar leads, notifications bell, settings screens. Status changes and replies must set `first_response_at`, which the SLA sweep relies on (see `docs/NOTIFICATIONS.md`) | |
 | 7 | Reporting | Volume by source, category distribution, conversion funnel and rate, time to first response, high-value lead analytics | |
 | 8 | **MCP server** ★ | Leads exposed as Model Context Protocol tools (search, get lead, list unanswered/critical, assign, change status, summary stats), mounted in the FastAPI app with the same auth and roles, so the sales team can work leads from Claude or ChatGPT. | |
 | 9 | Hardening | E2E tests, rate limiting, security review, Sentry, prod Docker images, deployment to the Hetzner server, README with demo walkthrough | |

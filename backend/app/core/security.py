@@ -46,6 +46,7 @@ async def verify_password_async(password: str, password_hash: str | None) -> boo
 class AccessTokenClaims:
     user_id: uuid.UUID
     role: Role
+    expires_at: datetime
 
 
 def create_access_token(
@@ -72,7 +73,11 @@ def decode_access_token(token: str, *, secret: str) -> AccessTokenClaims:
         )
         if payload["type"] != ACCESS_TOKEN_TYPE:
             raise AuthenticationError("Invalid token type")
-        return AccessTokenClaims(user_id=uuid.UUID(payload["sub"]), role=Role(payload["role"]))
+        return AccessTokenClaims(
+            user_id=uuid.UUID(payload["sub"]),
+            role=Role(payload["role"]),
+            expires_at=datetime.fromtimestamp(int(payload["exp"]), tz=UTC),
+        )
     except jwt.ExpiredSignatureError as exc:
         raise AuthenticationError("Access token expired") from exc
     except (jwt.InvalidTokenError, ValueError, KeyError) as exc:

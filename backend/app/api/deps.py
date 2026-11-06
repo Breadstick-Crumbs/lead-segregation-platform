@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.core.errors import AuthenticationError, NotFoundError, PermissionDeniedError
-from app.core.security import decode_access_token
-from app.db.session import get_session
+from app.core.security import AccessTokenClaims, decode_access_token
+from app.db.session import SessionFactory, get_session
 from app.integrations.microsoft_entra import EntraClient
 from app.models import User
 from app.models.enums import Role
@@ -41,6 +41,28 @@ async def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+async def get_stream_claims(
+    settings: SettingsDep,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+) -> AccessTokenClaims:
+    """Like `CurrentUser`, for long-lived streams: the user is checked with a short session
+    of its own, closed before the stream starts, so an open stream holds no pooled
+    connection. The stream must end at `expires_at`."""
+    if credentials is None:
+        raise AuthenticationError("Not authenticated")
+    claims = decode_access_token(
+        credentials.credentials, secret=settings.jwt_secret.get_secret_value()
+    )
+    async with SessionFactory() as session:
+        user = await UserRepository(session).get(claims.user_id)
+    if user is None or not user.is_active:
+        raise AuthenticationError("Not authenticated")
+    return claims
+
+
+StreamClaims = Annotated[AccessTokenClaims, Depends(get_stream_claims)]
 
 
 async def require_admin(user: CurrentUser) -> User:
