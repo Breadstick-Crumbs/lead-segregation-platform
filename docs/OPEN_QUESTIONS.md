@@ -14,5 +14,5 @@ answer from Tawasol later is a settings change, not a redesign.
 | 6 | Conversion | A rep changes the status manually to `converted`; no CRM sync. |
 | 7 | Mail provider | Any IMAP/SMTP inbox. Per-mailbox auth: password (generic hosts, Gmail app passwords) or OAuth2 XOAUTH2 (Microsoft 365, Google Workspace). |
 | 8 | WhatsApp number | Meta's **test number** from the WhatsApp Cloud API app dashboard. It can message up to 5 verified recipient numbers, which is enough for the demo. |
-| 9 | Hosting and data | No residency constraints. Hosting on Cloudflare (see `docs/DEPLOYMENT.md`). |
+| 9 | Hosting and data | No residency constraints. Self-hosted on the personal Hetzner server behind its existing Caddy at `leads.bricbybric.ae` (see `docs/DEPLOYMENT.md`). |
 | 10 | Deliverable | A public GitHub repository with CI, plus a deployed demo. |
