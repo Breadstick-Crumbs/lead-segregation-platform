@@ -22,9 +22,20 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     email: Mapped[str] = mapped_column(String(320), unique=True)
     full_name: Mapped[str] = mapped_column(String(200))
     role: Mapped[Role] = mapped_column(str_enum(Role, "role"))
-    password_hash: Mapped[str] = mapped_column(String(255))
+    # Null for accounts that only sign in with Microsoft.
+    password_hash: Mapped[str | None] = mapped_column(String(255))
+    # Entra object ID, linked on first Microsoft sign-in; stable even if the email changes.
+    entra_oid: Mapped[uuid.UUID | None] = mapped_column(unique=True)
     is_active: Mapped[bool] = mapped_column(default=True, server_default="true")
     last_login_at: Mapped[datetime | None] = mapped_column(tz_datetime())
+
+    @property
+    def has_password(self) -> bool:
+        return self.password_hash is not None
+
+    @property
+    def microsoft_linked(self) -> bool:
+        return self.entra_oid is not None
 
 
 class RefreshToken(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):

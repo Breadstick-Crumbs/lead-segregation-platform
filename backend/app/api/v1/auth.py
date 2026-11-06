@@ -5,7 +5,7 @@ from fastapi import APIRouter, Cookie, Response, status
 from app.api.deps import CurrentUser, SessionDep, SettingsDep
 from app.core.config import Settings
 from app.core.errors import AuthenticationError
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.auth import AuthProviders, LoginRequest, TokenResponse
 from app.schemas.user import PasswordChange, UserRead
 from app.services.auth import AuthService, IssuedTokens
 from app.services.users import UserService
@@ -19,7 +19,7 @@ REFRESH_COOKIE_PATH = "/api/v1/auth"
 RefreshCookie = Annotated[str | None, Cookie(alias=REFRESH_COOKIE)]
 
 
-def _token_response(response: Response, tokens: IssuedTokens, settings: Settings) -> TokenResponse:
+def set_refresh_cookie(response: Response, tokens: IssuedTokens, settings: Settings) -> None:
     response.set_cookie(
         REFRESH_COOKIE,
         tokens.refresh_token,
@@ -30,11 +30,21 @@ def _token_response(response: Response, tokens: IssuedTokens, settings: Settings
         samesite="strict",
     )
     response.headers["Cache-Control"] = "no-store"
+
+
+def _token_response(response: Response, tokens: IssuedTokens, settings: Settings) -> TokenResponse:
+    set_refresh_cookie(response, tokens, settings)
     return TokenResponse(
         access_token=tokens.access_token,
         expires_in=tokens.access_expires_in,
         user=UserRead.model_validate(tokens.user),
     )
+
+
+@router.get("/providers")
+async def auth_providers(settings: SettingsDep) -> AuthProviders:
+    """Which sign-in methods the login screen should offer."""
+    return AuthProviders(password=True, microsoft=settings.entra_enabled)
 
 
 @router.post("/login")

@@ -50,11 +50,16 @@ class AuthService:
             logger.info("login_failed", reason="inactive", user_id=str(user.id))
             raise AuthenticationError(INVALID_CREDENTIALS)
 
+        tokens = await self.start_session(user)
+        logger.info("login_succeeded", user_id=str(user.id))
+        return tokens
+
+    async def start_session(self, user: User) -> IssuedTokens:
+        """Open a new session (refresh-token family) for an already-authenticated user."""
         now = datetime.now(UTC)
         user.last_login_at = now
         tokens = self._issue(user, family_id=uuid.uuid4(), now=now)
         await self._session.commit()
-        logger.info("login_succeeded", user_id=str(user.id))
         return tokens
 
     async def refresh(self, raw_refresh_token: str) -> IssuedTokens:

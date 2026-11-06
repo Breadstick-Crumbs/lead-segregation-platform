@@ -20,6 +20,10 @@ class UserRepository:
         result = await self._session.execute(select(User).where(User.email == email.lower()))
         return result.scalar_one_or_none()
 
+    async def get_by_entra_oid(self, object_id: uuid.UUID) -> User | None:
+        result = await self._session.execute(select(User).where(User.entra_oid == object_id))
+        return result.scalar_one_or_none()
+
     async def list_all(self, *, active_only: bool = False) -> Sequence[User]:
         statement = select(User).order_by(User.full_name)
         if active_only:

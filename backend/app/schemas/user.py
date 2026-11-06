@@ -22,6 +22,8 @@ class UserRead(BaseModel):
     full_name: str
     role: Role
     is_active: bool
+    has_password: bool
+    microsoft_linked: bool
     last_login_at: datetime | None
     created_at: datetime
 
@@ -40,7 +42,8 @@ class UserCreate(BaseModel):
     email: NormalizedEmail
     full_name: FullName
     role: Role
-    password: Password
+    # Omit for a Microsoft-only account: the user signs in with their work account.
+    password: Password | None = None
 
 
 class UserUpdate(BaseModel):

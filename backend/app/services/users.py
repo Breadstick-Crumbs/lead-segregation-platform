@@ -40,7 +40,9 @@ class UserService:
             email=data.email,
             full_name=data.full_name,
             role=data.role,
-            password_hash=await hash_password_async(data.password),
+            password_hash=(
+                await hash_password_async(data.password) if data.password is not None else None
+            ),
         )
         self._users.add(user)
         try:

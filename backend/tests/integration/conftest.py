@@ -97,7 +97,7 @@ def create_user(db_session: AsyncSession) -> CreateUser:
         email: str = "rep@tawasol.test",
         *,
         role: Role = Role.SALES_REP,
-        password: str = TEST_PASSWORD,
+        password: str | None = TEST_PASSWORD,
         is_active: bool = True,
         full_name: str = "Test User",
     ) -> User:
@@ -105,7 +105,7 @@ def create_user(db_session: AsyncSession) -> CreateUser:
             email=email,
             full_name=full_name,
             role=role,
-            password_hash=hash_password(password),
+            password_hash=hash_password(password) if password is not None else None,
             is_active=is_active,
         )
         db_session.add(user)

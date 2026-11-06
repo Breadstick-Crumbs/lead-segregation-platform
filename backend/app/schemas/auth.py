@@ -12,6 +12,11 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=MAX_PASSWORD_LENGTH)
 
 
+class AuthProviders(BaseModel):
+    password: bool
+    microsoft: bool
+
+
 class TokenResponse(BaseModel):
     """The access token goes in the body; the refresh token is an httpOnly cookie."""
 

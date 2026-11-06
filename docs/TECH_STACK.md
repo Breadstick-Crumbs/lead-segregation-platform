@@ -27,6 +27,20 @@ Versions were verified against PyPI/npm on 2026-11-06. The lockfiles
 | Types | mypy 2.x strict + pydantic plugin | Catch bugs before runtime |
 | Tests | pytest 9 + pytest-asyncio 1.x + httpx ASGITransport; Postgres via Docker | Real database in integration tests, no SQLite mismatch |
 
+## Newer technology (★ on the roadmap)
+
+Picked because each solves a real problem in this product, not for novelty.
+
+| Feature | Technology | Why it earns its place |
+|---------|------------|------------------------|
+| Sign in with Microsoft | OpenID Connect auth-code flow + PKCE against Microsoft Entra ID; ID tokens verified with PyJWT against Entra's JWKS | Gulf companies mostly run Microsoft 365: reps use their work account and lose access when they leave the company |
+| Voice-note leads | WhatsApp Cloud API media download + OpenAI speech-to-text | Voice notes are common in the Gulf; without transcription those leads can't be classified or scored |
+| Similar leads | `pgvector` (Postgres extension, HNSW index) + OpenAI embeddings | Duplicate detection across addresses, better "previous interactions" scoring, and "leads like this converted", without adding a separate vector database |
+| AI-assistant access | Model Context Protocol server (official Python MCP SDK, streamable HTTP) inside the FastAPI app | Sales can ask Claude or ChatGPT "which critical WhatsApp leads are unanswered?" and act on them, under the same auth and roles |
+
+Exact SDK versions and model IDs are confirmed when each phase starts. Model IDs stay in
+config.
+
 ## Frontend (pnpm)
 
 | Concern | Choice |

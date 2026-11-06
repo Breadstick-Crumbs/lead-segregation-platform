@@ -79,6 +79,28 @@ def decode_access_token(token: str, *, secret: str) -> AccessTokenClaims:
         raise AuthenticationError("Invalid access token") from exc
 
 
+def encode_short_lived(
+    payload: dict[str, str], *, purpose: str, secret: str, ttl: timedelta
+) -> str:
+    """Sign a small payload for a round trip through the browser (e.g. OIDC state)."""
+    now = datetime.now(UTC)
+    return jwt.encode(
+        {**payload, "type": purpose, "iat": now, "exp": now + ttl}, secret, algorithm=JWT_ALGORITHM
+    )
+
+
+def decode_short_lived(token: str, *, purpose: str, secret: str) -> dict[str, str]:
+    try:
+        claims = jwt.decode(
+            token, secret, algorithms=[JWT_ALGORITHM], options={"require": ["exp", "type"]}
+        )
+    except jwt.InvalidTokenError as exc:
+        raise AuthenticationError("Invalid or expired state") from exc
+    if claims.get("type") != purpose:
+        raise AuthenticationError("Invalid or expired state")
+    return {k: v for k, v in claims.items() if isinstance(v, str)}
+
+
 def generate_refresh_token() -> str:
     return secrets.token_urlsafe(48)
 
