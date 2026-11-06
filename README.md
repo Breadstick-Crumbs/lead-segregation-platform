@@ -14,6 +14,7 @@ shows everything on a dashboard with reporting.
 - Auto-reply (email and WhatsApp), at-most-once sending, delivery receipts: [docs/AUTO_REPLY.md](docs/AUTO_REPLY.md)
 - Notifications, escalation, SLA and the live stream: [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md)
 - Dashboard screens, permissions and demo data: [docs/DASHBOARD.md](docs/DASHBOARD.md)
+- Reporting: what each figure means: [docs/REPORTING.md](docs/REPORTING.md)
 
 ## Quick start
 

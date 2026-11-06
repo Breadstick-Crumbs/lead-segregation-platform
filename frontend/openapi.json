@@ -1469,6 +1469,74 @@
         ]
       }
     },
+    "/api/v1/reports": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Lead Report",
+        "description": "Leads opened in the last `days` days. Daily volume is bucketed in `timezone` (an IANA\nname; defaults to REPORTING_TIMEZONE).",
+        "operationId": "lead_report",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Timezone"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings": {
       "get": {
         "tags": [
@@ -1783,6 +1851,30 @@
         ],
         "title": "AuthProviders"
       },
+      "CategoryCount": {
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LeadCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "count"
+        ],
+        "title": "CategoryCount"
+      },
       "Channel": {
         "type": "string",
         "enum": [
@@ -1920,6 +2012,52 @@
         ],
         "title": "EventRead"
       },
+      "Funnel": {
+        "properties": {
+          "created": {
+            "type": "integer",
+            "title": "Created"
+          },
+          "contacted": {
+            "type": "integer",
+            "title": "Contacted"
+          },
+          "qualified": {
+            "type": "integer",
+            "title": "Qualified"
+          },
+          "converted": {
+            "type": "integer",
+            "title": "Converted"
+          },
+          "lost": {
+            "type": "integer",
+            "title": "Lost"
+          },
+          "conversion_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversion Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created",
+          "contacted",
+          "qualified",
+          "converted",
+          "lost",
+          "conversion_rate"
+        ],
+        "title": "Funnel",
+        "description": "Non-spam leads opened in the period, by the furthest stage each one reached."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1958,6 +2096,129 @@
           "database"
         ],
         "title": "HealthStatus"
+      },
+      "HighValue": {
+        "properties": {
+          "threshold": {
+            "type": "integer",
+            "title": "Threshold"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "converted": {
+            "type": "integer",
+            "title": "Converted"
+          },
+          "conversion_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversion Rate"
+          },
+          "share_of_leads": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Of Leads"
+          },
+          "top": {
+            "items": {
+              "$ref": "#/components/schemas/HighValueLead"
+            },
+            "type": "array",
+            "title": "Top"
+          }
+        },
+        "type": "object",
+        "required": [
+          "threshold",
+          "count",
+          "converted",
+          "conversion_rate",
+          "share_of_leads",
+          "top"
+        ],
+        "title": "HighValue"
+      },
+      "HighValueLead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Priority"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LeadCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/LeadStatus"
+          },
+          "owner_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "score",
+          "priority",
+          "category",
+          "status",
+          "owner_name",
+          "created_at"
+        ],
+        "title": "HighValueLead"
       },
       "IntegrationStatus": {
         "properties": {
@@ -3167,6 +3428,180 @@
         ],
         "title": "ReplyCreate"
       },
+      "Report": {
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ReportPeriod"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "spam": {
+            "type": "integer",
+            "title": "Spam"
+          },
+          "by_source": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/Channel"
+            },
+            "type": "object",
+            "title": "By Source"
+          },
+          "auto_replies_sent": {
+            "type": "integer",
+            "title": "Auto Replies Sent"
+          },
+          "volume": {
+            "items": {
+              "$ref": "#/components/schemas/VolumeDay"
+            },
+            "type": "array",
+            "title": "Volume"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryCount"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "funnel": {
+            "$ref": "#/components/schemas/Funnel"
+          },
+          "response": {
+            "$ref": "#/components/schemas/ResponseTimes"
+          },
+          "high_value": {
+            "$ref": "#/components/schemas/HighValue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "total",
+          "spam",
+          "by_source",
+          "auto_replies_sent",
+          "volume",
+          "categories",
+          "funnel",
+          "response",
+          "high_value"
+        ],
+        "title": "Report"
+      },
+      "ReportPeriod": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End"
+          },
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "days",
+          "timezone"
+        ],
+        "title": "ReportPeriod"
+      },
+      "ResponseTimes": {
+        "properties": {
+          "responded": {
+            "type": "integer",
+            "title": "Responded"
+          },
+          "unanswered": {
+            "type": "integer",
+            "title": "Unanswered"
+          },
+          "median_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Minutes"
+          },
+          "p90_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P90 Minutes"
+          },
+          "sla_minutes": {
+            "type": "integer",
+            "title": "Sla Minutes"
+          },
+          "urgent": {
+            "type": "integer",
+            "title": "Urgent"
+          },
+          "urgent_within_sla": {
+            "type": "integer",
+            "title": "Urgent Within Sla"
+          },
+          "within_sla_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Within Sla Rate"
+          },
+          "by_source": {
+            "items": {
+              "$ref": "#/components/schemas/SourceResponse"
+            },
+            "type": "array",
+            "title": "By Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "responded",
+          "unanswered",
+          "median_minutes",
+          "p90_minutes",
+          "sla_minutes",
+          "urgent",
+          "urgent_within_sla",
+          "within_sla_rate",
+          "by_source"
+        ],
+        "title": "ResponseTimes",
+        "description": "Time from a lead arriving to the first human response: a reply, or a person moving\nit to contacted, qualified or converted. Marking a lead spam or lost isn't a response."
+      },
       "Role": {
         "type": "string",
         "enum": [
@@ -3489,6 +3924,35 @@
         ],
         "title": "SimilarLeadRead"
       },
+      "SourceResponse": {
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/Channel"
+          },
+          "responded": {
+            "type": "integer",
+            "title": "Responded"
+          },
+          "median_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Minutes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "responded",
+          "median_minutes"
+        ],
+        "title": "SourceResponse"
+      },
       "TokenResponse": {
         "properties": {
           "access_token": {
@@ -3736,6 +4200,30 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VolumeDay": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "email": {
+            "type": "integer",
+            "title": "Email"
+          },
+          "whatsapp": {
+            "type": "integer",
+            "title": "Whatsapp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "email",
+          "whatsapp"
+        ],
+        "title": "VolumeDay"
       }
     },
     "securitySchemes": {

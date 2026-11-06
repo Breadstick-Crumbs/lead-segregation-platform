@@ -500,7 +500,34 @@ async def _seed_one(session: AsyncSession, demo: DemoLead) -> None:
         .where(LeadEvent.lead_id == lead_id)
         .values(created_at=received + timedelta(seconds=5))
     )
+    # The owner's own steps, with real timestamps, so reports measure response times from
+    # the same history a live lead would have.
+    owner_id = lead.owner_id if lead is not None else None
+    for step, (status, after) in enumerate(_story(demo.status)):
+        previous = LeadStatus.NEW if step == 0 else _story(demo.status)[step - 1][0]
+        session.add(
+            LeadEvent(
+                lead_id=lead_id,
+                type=LeadEventType.STATUS_CHANGED,
+                actor_id=owner_id,
+                payload={"from": previous.value, "to": status.value},
+                created_at=received + after,
+            )
+        )
     await session.commit()
+
+
+def _story(final: LeadStatus) -> list[tuple[LeadStatus, timedelta]]:
+    """The status changes that lead to `final`, with how long after arrival each happened."""
+    contacted = (LeadStatus.CONTACTED, timedelta(minutes=35))
+    qualified = (LeadStatus.QUALIFIED, timedelta(days=1))
+    return {
+        LeadStatus.NEW: [],
+        LeadStatus.CONTACTED: [contacted],
+        LeadStatus.QUALIFIED: [contacted, qualified],
+        LeadStatus.CONVERTED: [contacted, qualified, (LeadStatus.CONVERTED, timedelta(days=4))],
+        LeadStatus.LOST: [contacted, (LeadStatus.LOST, timedelta(days=3))],
+    }.get(final, [])
 
 
 WORKER_ALIVE_SECONDS = 60

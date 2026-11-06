@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     slack_webhook_url: SecretStr | None = None
     teams_webhook_url: SecretStr | None = None
 
+    # Reports bucket days in this time zone (IANA name).
+    reporting_timezone: str = "Asia/Dubai"
+
     sentry_dsn: str | None = None
 
     # Used only by `python -m app.scripts.seed`.

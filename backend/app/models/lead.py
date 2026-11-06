@@ -35,6 +35,7 @@ class Lead(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         CheckConstraint("score BETWEEN 0 AND 100", name="score_range"),
         Index("ix_leads_status_created_at", "status", "created_at"),
+        Index("ix_leads_created_at", "created_at"),  # reporting periods
         # Approximate nearest-neighbour search for similar leads (cosine distance).
         Index(
             "ix_leads_embedding_hnsw",

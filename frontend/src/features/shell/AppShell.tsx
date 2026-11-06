@@ -12,13 +12,14 @@ import { Toasts } from '../notifications/Toasts'
 import { useTheme } from './theme'
 
 interface NavItem {
-  to: '/' | '/settings'
+  to: '/' | '/reports' | '/settings'
   label: string
   adminOnly?: boolean
 }
 
 const NAV: NavItem[] = [
   { to: '/', label: 'Leads' },
+  { to: '/reports', label: 'Reports' },
   { to: '/settings', label: 'Settings', adminOnly: true },
 ]
 

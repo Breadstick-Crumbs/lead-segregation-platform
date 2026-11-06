@@ -21,6 +21,10 @@
   --color-priority-low: #64748b;
   --color-success: #15803d;
 
+  /* Chart series, checked with the dataviz palette validator in both themes. */
+  --color-series-email: #a94064;
+  --color-series-whatsapp: #3b5ba9;
+
   --radius-control: 12px;
   --radius-card: 16px;
   --radius-plate: 24px;
@@ -38,6 +42,8 @@
   --color-muted: #94a3b8;
   --color-accent: #f472b6;
   --color-accent-tint: color-mix(in oklab, var(--color-accent) 12%, transparent);
+  --color-series-email: #e0609e;
+  --color-series-whatsapp: #5f86e0;
 }
 
 body {

@@ -29,6 +29,23 @@ export interface AuthProviders {
   microsoft: boolean;
 }
 
+export type LeadCategory = typeof LeadCategory[keyof typeof LeadCategory];
+
+
+export const LeadCategory = {
+  sales_opportunity: 'sales_opportunity',
+  demo_request: 'demo_request',
+  partnership_inquiry: 'partnership_inquiry',
+  support_request: 'support_request',
+  general_inquiry: 'general_inquiry',
+  spam: 'spam',
+} as const;
+
+export interface CategoryCount {
+  category: LeadCategory | null;
+  count: number;
+}
+
 export type Channel = typeof Channel[keyof typeof Channel];
 
 
@@ -86,6 +103,18 @@ export interface EventRead {
   created_at: string;
 }
 
+/**
+ * Non-spam leads opened in the period, by the furthest stage each one reached.
+ */
+export interface Funnel {
+  created: number;
+  contacted: number;
+  qualified: number;
+  converted: number;
+  lost: number;
+  conversion_rate: number | null;
+}
+
 export type ValidationErrorCtx = { [key: string]: unknown };
 
 export interface ValidationError {
@@ -121,29 +150,6 @@ export interface HealthStatus {
   database: HealthStatusDatabase;
 }
 
-export interface IntegrationStatus {
-  openai: boolean;
-  whatsapp: boolean;
-  whatsapp_phone_number_id: string | null;
-  microsoft_sign_in: boolean;
-  slack: boolean;
-  teams: boolean;
-  secrets_key: boolean;
-  active_mailboxes: number;
-}
-
-export type LeadCategory = typeof LeadCategory[keyof typeof LeadCategory];
-
-
-export const LeadCategory = {
-  sales_opportunity: 'sales_opportunity',
-  demo_request: 'demo_request',
-  partnership_inquiry: 'partnership_inquiry',
-  support_request: 'support_request',
-  general_inquiry: 'general_inquiry',
-  spam: 'spam',
-} as const;
-
 export type Priority = typeof Priority[keyof typeof Priority];
 
 
@@ -165,6 +171,37 @@ export const LeadStatus = {
   lost: 'lost',
   spam: 'spam',
 } as const;
+
+export interface HighValueLead {
+  id: string;
+  display_name: string;
+  score: number;
+  priority: Priority | null;
+  category: LeadCategory | null;
+  status: LeadStatus;
+  owner_name: string | null;
+  created_at: string;
+}
+
+export interface HighValue {
+  threshold: number;
+  count: number;
+  converted: number;
+  conversion_rate: number | null;
+  share_of_leads: number | null;
+  top: HighValueLead[];
+}
+
+export interface IntegrationStatus {
+  openai: boolean;
+  whatsapp: boolean;
+  whatsapp_phone_number_id: string | null;
+  microsoft_sign_in: boolean;
+  slack: boolean;
+  teams: boolean;
+  secrets_key: boolean;
+  active_mailboxes: number;
+}
 
 export type ProcessingState = typeof ProcessingState[keyof typeof ProcessingState];
 
@@ -483,6 +520,54 @@ export interface ReplyCreate {
   body: string;
 }
 
+export interface ReportPeriod {
+  start: string;
+  end: string;
+  days: number;
+  timezone: string;
+}
+
+export interface VolumeDay {
+  date: string;
+  email: number;
+  whatsapp: number;
+}
+
+export interface SourceResponse {
+  source: Channel;
+  responded: number;
+  median_minutes: number | null;
+}
+
+/**
+ * Time from a lead arriving to the first human response: a reply, or a person moving
+ * it to contacted, qualified or converted. Marking a lead spam or lost isn't a response.
+ */
+export interface ResponseTimes {
+  responded: number;
+  unanswered: number;
+  median_minutes: number | null;
+  p90_minutes: number | null;
+  sla_minutes: number;
+  urgent: number;
+  urgent_within_sla: number;
+  within_sla_rate: number | null;
+  by_source: SourceResponse[];
+}
+
+export interface Report {
+  period: ReportPeriod;
+  total: number;
+  spam: number;
+  by_source: Partial<Record<Channel, number>>;
+  auto_replies_sent: number;
+  volume: VolumeDay[];
+  categories: CategoryCount[];
+  funnel: Funnel;
+  response: ResponseTimes;
+  high_value: HighValue;
+}
+
 export interface ScoringPreviewItem {
   lead_id: string;
   display_name: string;
@@ -670,6 +755,15 @@ export type ListNotificationsParams = {
    */
   limit?: number;
   before?: string | null;
+};
+
+export type LeadReportParams = {
+  /**
+   * @minimum 1
+   * @maximum 365
+   */
+  days?: number;
+  timezone?: string | null;
 };
 
 export type SaveSettingBody = { [key: string]: unknown };
@@ -3521,6 +3615,116 @@ export function useStreamNotifications<TData = Awaited<ReturnType<typeof streamN
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getStreamNotificationsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getLeadReportUrl = (params?: LeadReportParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/reports?${stringifiedParams}` : `/api/v1/reports`
+}
+
+/**
+ * Leads opened in the last `days` days. Daily volume is bucketed in `timezone` (an IANA
+ * name; defaults to REPORTING_TIMEZONE).
+ * @summary Lead Report
+ */
+export const leadReport = async (params?: LeadReportParams, options?: Parameters<typeof apiFetch>[1]): Promise<Report> => {
+
+  return apiFetch<Report>(getLeadReportUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getLeadReportQueryKey = (params?: LeadReportParams,) => {
+    return [
+    `/api/v1/reports`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getLeadReportQueryOptions = <TData = Awaited<ReturnType<typeof leadReport>>, TError = HTTPValidationError>(params?: LeadReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof leadReport>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLeadReportQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof leadReport>>> = ({ signal }) => leadReport(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof leadReport>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type LeadReportQueryResult = NonNullable<Awaited<ReturnType<typeof leadReport>>>
+export type LeadReportQueryError = HTTPValidationError
+
+
+export function useLeadReport<TData = Awaited<ReturnType<typeof leadReport>>, TError = HTTPValidationError>(
+ params: undefined |  LeadReportParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof leadReport>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof leadReport>>,
+          TError,
+          Awaited<ReturnType<typeof leadReport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLeadReport<TData = Awaited<ReturnType<typeof leadReport>>, TError = HTTPValidationError>(
+ params?: LeadReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof leadReport>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof leadReport>>,
+          TError,
+          Awaited<ReturnType<typeof leadReport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLeadReport<TData = Awaited<ReturnType<typeof leadReport>>, TError = HTTPValidationError>(
+ params?: LeadReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof leadReport>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Lead Report
+ */
+
+export function useLeadReport<TData = Awaited<ReturnType<typeof leadReport>>, TError = HTTPValidationError>(
+ params?: LeadReportParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof leadReport>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getLeadReportQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
