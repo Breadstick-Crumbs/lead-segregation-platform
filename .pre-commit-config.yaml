@@ -1,0 +1,35 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: detect-private-key
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: bash -c 'cd backend && uv run ruff check --fix .'
+        language: system
+        files: ^backend/.*\.py$
+        pass_filenames: false
+      - id: ruff-format
+        name: ruff format
+        entry: bash -c 'cd backend && uv run ruff format .'
+        language: system
+        files: ^backend/.*\.py$
+        pass_filenames: false
+      - id: mypy
+        name: mypy
+        entry: bash -c 'cd backend && uv run mypy app'
+        language: system
+        files: ^backend/.*\.py$
+        pass_filenames: false
+      - id: frontend-lint
+        name: oxlint + prettier
+        entry: bash -c 'cd frontend && pnpm lint && pnpm format:check'
+        language: system
+        files: ^frontend/
+        pass_filenames: false
