@@ -1,1 +1,61 @@
 @import 'tailwindcss';
+
+/* Design tokens: see docs/DESIGN.md. Change the accent here to rebrand. */
+@theme {
+  --font-sans: 'Urbanist', 'IBM Plex Sans Arabic', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --color-bg: #fafafa;
+  --color-surface: #ffffff;
+  --color-plate: #f4f1f2;
+  --color-border: #ececef;
+  --color-ink: #0f172a;
+  --color-body: #475569;
+  --color-muted: #64748b;
+  --color-accent: #0e7c6b;
+  --color-accent-tint: color-mix(in oklab, var(--color-accent) 6%, transparent);
+
+  --color-priority-critical: #b42318;
+  --color-priority-high: #c2410c;
+  --color-priority-medium: #a16207;
+  --color-priority-low: #64748b;
+  --color-success: #15803d;
+
+  --radius-control: 12px;
+  --radius-card: 16px;
+  --radius-plate: 24px;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+.dark {
+  --color-bg: #0b0f17;
+  --color-surface: #121826;
+  --color-plate: #1a2131;
+  --color-border: #252d3d;
+  --color-ink: #f1f5f9;
+  --color-body: #cbd5e1;
+  --color-muted: #94a3b8;
+  --color-accent: #2dd4bf;
+  --color-accent-tint: color-mix(in oklab, var(--color-accent) 12%, transparent);
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-body);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

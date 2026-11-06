@@ -23,4 +23,4 @@ cd frontend && pnpm install && pnpm dev
 
 The API runs at http://localhost:8000 (docs at `/docs`) and the dashboard at http://localhost:5173.
 
-The full stack in containers: `docker compose up --build`, dashboard at http://localhost:8080.
+The full stack in containers: `docker compose up --build`, dashboard at http://localhost:8088.

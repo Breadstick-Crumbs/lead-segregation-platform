@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
 
-    database_url: PostgresDsn = PostgresDsn("postgresql+asyncpg://leads:leads@localhost:5432/leads")
+    database_url: PostgresDsn = PostgresDsn("postgresql+asyncpg://leads:leads@localhost:5442/leads")
 
     jwt_secret: SecretStr = SecretStr("change-me")
     jwt_access_ttl_minutes: int = 15

@@ -6,7 +6,8 @@ services:
       POSTGRES_USER: leads
       POSTGRES_PASSWORD: leads
       POSTGRES_DB: leads
-    ports: ["5432:5432"]
+    # Host port 5442 avoids clashing with other local Postgres instances.
+    ports: ["5442:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U leads -d leads"]
@@ -25,7 +26,7 @@ services:
 
   web:
     build: ./frontend
-    ports: ["8080:80"]
+    ports: ["8088:80"]
     depends_on: [api]
 
 volumes:
