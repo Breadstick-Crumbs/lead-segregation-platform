@@ -11,7 +11,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "gen:api": "orval",
+    "gen:api": "uv --directory ../backend run python -m app.scripts.export_openapi ../frontend/openapi.json && orval",
     "preview": "vite preview"
   },
   "dependencies": {

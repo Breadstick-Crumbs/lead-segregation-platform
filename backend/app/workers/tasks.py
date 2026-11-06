@@ -217,6 +217,27 @@ async def sweep_sla(timestamp: int) -> None:
         logger.info("sla_breaches_escalated", count=queued)
 
 
+@app.task(
+    name=names.SEND_MESSAGE,
+    retry=RetryStrategy(max_attempts=AUTO_REPLY_RUNS - 1, exponential_wait=5),
+    pass_context=True,
+)
+async def send_message(context: JobContext, message_id: str) -> None:
+    """A rep's reply from the dashboard (queued by the API)."""
+    settings = get_settings()
+    try:
+        whatsapp: WhatsAppClient | None = WhatsAppClient.from_settings(settings)
+    except WhatsAppError:
+        whatsapp = None
+    async with SessionFactory() as session:
+        outcome = await AutoReplyService(
+            session, settings, email=AioSmtpSender(), whatsapp=whatsapp
+        ).send_message(
+            uuid.UUID(message_id), final_attempt=context.job.attempts >= AUTO_REPLY_RUNS - 1
+        )
+    logger.info("send_message_done", message_id=message_id, outcome=outcome)
+
+
 @app.task(name=names.POLL_MAILBOX, retry=RetryStrategy(max_attempts=1, wait=30))
 async def poll_mailbox(mailbox_id: str) -> None:
     async with SessionFactory() as session:

@@ -509,3 +509,22 @@ async def test_a_later_delivery_clears_an_earlier_error(
 
     reply = await _reply(db_session, lead_id)
     assert (reply.delivery_status, reply.delivery_error) == (DeliveryStatus.READ, None)
+
+
+async def test_no_acknowledgement_after_a_person_has_answered(
+    db_session: AsyncSession, settings: Settings
+) -> None:
+    # Regression: a rep replied before the scoring job ran; the customer then got "we'll be
+    # in touch" after the human answer.
+    mailbox_id = await _mailbox(db_session, settings)
+    lead_id = await _scored_lead(db_session, _email(mailbox_id))
+    await db_session.execute(
+        update(Lead).where(Lead.id == lead_id).values(first_response_at=datetime.now(UTC))
+    )
+    await db_session.commit()
+    email = FakeEmailSender()
+
+    assert await _service(db_session, settings, email).send(lead_id, final_attempt=False) == (
+        AutoReplyOutcome.SKIPPED
+    )
+    assert email.sent == []

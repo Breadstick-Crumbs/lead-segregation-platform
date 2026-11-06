@@ -1,8 +1,8 @@
 # Design direction
 
 **Reference:** the style of [smartmum.ai](https://smartmum.ai/), especially its
-"Doctor Portal" dashboard mockup. We take its visual vocabulary, not its brand:
-different accent, our own content. The measured notes and screenshots are in
+"Doctor Portal" dashboard mockup. We take its visual vocabulary and a berry accent close to
+its own, with our own content. The measured notes and screenshots are in
 the taste profile (`~/.susanoo/taste/sites/smartmum/`).
 
 **Feeling:** calm and in control. A rep opens the dashboard and immediately
@@ -36,7 +36,7 @@ knows which three leads need them now and why.
 | `--color-ink` | `#0F172A` | `#F1F5F9` | headings, numbers |
 | `--color-body` | `#475569` | `#CBD5E1` | body text |
 | `--color-muted` | `#64748B` | `#94A3B8` | eyebrows, meta |
-| `--color-accent` | `#0E7C6B` | `#2DD4BF` | primary CTA, second heading line, active nav, chart series |
+| `--color-accent` | `#A94064` | `#F472B6` | primary CTA, second heading line, active nav, chart series |
 | `--color-accent-tint` | accent at 6% | accent at 12% | active pill, chips |
 
 Fixed status colours (each paired with text, never colour alone):
@@ -49,7 +49,7 @@ Fixed status colours (each paired with text, never colour alone):
 | low | `#64748B` |
 | success / connected | `#15803D` |
 
-- **Accent:** deep teal for now. Swap `--color-accent` for Tawasol's brand
+- **Accent:** berry (`#A94064`), close to SmartMum's own, chosen on 2026-11-06. Swap `--color-accent` for Tawasol's brand
   colour if one is supplied; nothing else changes.
 - **Type:** Urbanist (Google Fonts) for everything, and JetBrains Mono for
   eyebrows, IDs and tabular numbers.

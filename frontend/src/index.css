@@ -12,7 +12,7 @@
   --color-ink: #0f172a;
   --color-body: #475569;
   --color-muted: #64748b;
-  --color-accent: #0e7c6b;
+  --color-accent: #a94064;
   --color-accent-tint: color-mix(in oklab, var(--color-accent) 6%, transparent);
 
   --color-priority-critical: #b42318;
@@ -36,7 +36,7 @@
   --color-ink: #f1f5f9;
   --color-body: #cbd5e1;
   --color-muted: #94a3b8;
-  --color-accent: #2dd4bf;
+  --color-accent: #f472b6;
   --color-accent-tint: color-mix(in oklab, var(--color-accent) 12%, transparent);
 }
 
@@ -58,4 +58,22 @@ body {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* A new-notification toast slides in once (docs/DESIGN.md: the only entrance motion). */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Arabic lead text renders in a face that covers it; the UI chrome stays Urbanist. */
+[dir='rtl'],
+:lang(ar) {
+  font-family: 'IBM Plex Sans Arabic', var(--font-sans);
 }

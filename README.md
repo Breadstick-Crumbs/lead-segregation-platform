@@ -13,6 +13,7 @@ shows everything on a dashboard with reporting.
 - AI pipeline, guarantees and classifier evaluation: [docs/AI_PIPELINE.md](docs/AI_PIPELINE.md)
 - Auto-reply (email and WhatsApp), at-most-once sending, delivery receipts: [docs/AUTO_REPLY.md](docs/AUTO_REPLY.md)
 - Notifications, escalation, SLA and the live stream: [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md)
+- Dashboard screens, permissions and demo data: [docs/DASHBOARD.md](docs/DASHBOARD.md)
 
 ## Quick start
 
@@ -30,3 +31,5 @@ cd frontend && pnpm install && pnpm dev
 The API runs at http://localhost:8000 (docs at `/docs`) and the dashboard at http://localhost:5173.
 
 The full stack in containers: `docker compose up --build`, dashboard at http://localhost:8088.
+
+For a dashboard full of realistic leads, run the demo seed (see [docs/DASHBOARD.md](docs/DASHBOARD.md#demo-data)).

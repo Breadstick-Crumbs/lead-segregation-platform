@@ -13,6 +13,7 @@ from app.schemas.analysis import LeadAnalysis
 from app.schemas.app_settings import KeywordRule, ScoringThresholds, ScoringWeights
 
 MAX_FACTOR = 100
+FACTORS = ("intent", "urgency", "business_value", "keywords", "company", "history")
 
 # Company factor: how much we know about the organisation behind the lead.
 CORPORATE_DOMAIN_POINTS = 40
@@ -148,3 +149,20 @@ def score_lead(
         "category": {"value": analysis.category, "confidence": analysis.category_confidence},
     }
     return ScoreResult(total=total, priority=priority_for(total, thresholds), breakdown=breakdown)
+
+
+def rescore(
+    breakdown: dict[str, Any], *, weights: ScoringWeights, thresholds: ScoringThresholds
+) -> tuple[int, Priority]:
+    """A stored score recomputed with other weights and thresholds (the settings preview).
+    The factor values are kept; only the weighting, caps and bands change."""
+    values = {name: int(breakdown.get(name, {}).get("value", 0)) for name in FACTORS}
+    weight_of = weights.model_dump()
+    raw = sum(values[name] * weight_of[name] for name in FACTORS) / sum(weight_of.values())
+    total = math.floor(raw + 0.5)
+    category = (breakdown.get("category") or {}).get("value")
+    if category == LeadCategory.SPAM:
+        total = min(total, thresholds.spam_score_cap)
+    elif category == LeadCategory.SUPPORT_REQUEST:
+        total = min(total, thresholds.support_score_cap)
+    return total, priority_for(total, thresholds)

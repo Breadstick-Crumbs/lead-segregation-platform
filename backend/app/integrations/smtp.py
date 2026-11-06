@@ -59,6 +59,7 @@ def compose_reply(
     message_id: str,
     in_reply_to: str | None,
     references: tuple[str, ...],
+    automatic: bool = True,
 ) -> EmailMessage:
     """A plain-text reply that threads under the customer's message (RFC 5322 §3.6.4) and
     is marked as automatic (RFC 3834), so other autoresponders don't answer it."""
@@ -72,8 +73,9 @@ def compose_reply(
         message["In-Reply-To"] = in_reply_to
     if references:
         message["References"] = " ".join(references)
-    message["Auto-Submitted"] = "auto-replied"
-    message["X-Auto-Response-Suppress"] = "All"  # Exchange/Outlook out-of-office replies
+    if automatic:  # a person's reply must read as one, not as a robot's
+        message["Auto-Submitted"] = "auto-replied"
+        message["X-Auto-Response-Suppress"] = "All"  # Exchange/Outlook out-of-office replies
     message.set_content(body)
     return message
 

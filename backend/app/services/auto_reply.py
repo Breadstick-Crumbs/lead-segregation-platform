@@ -126,10 +126,25 @@ class AutoReplyService:
         self._messages = MessageRepository(session)
 
     async def send(self, lead_id: uuid.UUID, *, final_attempt: bool) -> AutoReplyOutcome:
+        """The lead's automatic acknowledgement: created if it is due, then sent."""
         reply = await self._prepare(lead_id)
         if isinstance(reply, AutoReplyOutcome):
             return reply
+        return await self._send_row(reply, final_attempt=final_attempt)
 
+    async def send_message(self, message_id: uuid.UUID, *, final_attempt: bool) -> AutoReplyOutcome:
+        """Send an outbound message that was already queued, e.g. a rep's reply from the
+        dashboard. Same at-most-once rules as the auto-reply."""
+        message = await self._session.get(Message, message_id)
+        if message is None or message.direction != MessageDirection.OUTBOUND:
+            return AutoReplyOutcome.SKIPPED
+        resumed = await self._resume(message)
+        if isinstance(resumed, AutoReplyOutcome):
+            return resumed
+        return await self._send_row(resumed, final_attempt=final_attempt)
+
+    async def _send_row(self, reply: Message, *, final_attempt: bool) -> AutoReplyOutcome:
+        lead_id = reply.lead_id
         reply_id = reply.id
         # Claim the send atomically: of two runs that both found the row unsent, only one
         # gets it back.
@@ -143,12 +158,12 @@ class AutoReplyService:
             if exc.retryable and not final_attempt:
                 reply.send_started_at = None  # certainly not sent: safe to try again
                 await self._session.commit()
-                logger.warning("auto_reply_retry", lead_id=str(lead_id), error=str(exc))
+                logger.warning("outbound_retry", lead_id=str(lead_id), error=str(exc))
                 raise
             return await self._finish_failed(reply, str(exc))
         except Exception as exc:
             # A bug mid-send: the message may or may not have left, so never resend it.
-            logger.exception("auto_reply_crashed", lead_id=str(lead_id))
+            logger.exception("outbound_crashed", lead_id=str(lead_id))
             await self._session.rollback()
             fresh = await self._session.get(Message, reply_id)
             if fresh is not None:
@@ -156,18 +171,18 @@ class AutoReplyService:
             raise
 
         # Logged before the commit: if the commit fails, the provider's id is still on record.
-        logger.info("auto_reply_accepted", lead_id=str(lead_id), external_id=external_id)
+        logger.info("outbound_accepted", lead_id=str(lead_id), external_id=external_id)
         reply.external_id = external_id
         reply.delivery_status = DeliveryStatus.SENT
         reply.delivery_error = None
         reply.occurred_at = datetime.now(UTC)
         self._leads.add_event(
             reply.lead_id,
-            LeadEventType.AUTO_REPLIED,
+            _event_type(reply),
             {"message_id": str(reply.id), "channel": reply.channel, "status": "sent"},
         )
         await self._session.commit()
-        logger.info("auto_reply_sent", lead_id=str(lead_id), channel=reply.channel)
+        logger.info("outbound_sent", lead_id=str(lead_id), channel=reply.channel)
         return AutoReplyOutcome.SENT
 
     async def _prepare(self, lead_id: uuid.UUID) -> Message | AutoReplyOutcome:
@@ -210,22 +225,14 @@ class AutoReplyService:
             return "closed", None
         if not wants_auto_reply(lead.score, lead.category, thresholds):
             return "below_threshold_or_spam", None
-        inbound = [
-            m
-            for m in await self._messages.for_lead(lead.id)
-            if m.direction == MessageDirection.INBOUND
-        ]
+        messages = await self._messages.for_lead(lead.id)
+        if lead.first_response_at is not None or any(m.sent_by_user_id for m in messages):
+            # Someone already answered (or moved it on): "we'll be in touch" would come late.
+            return "already_answered", None
+        inbound = [m for m in messages if m.direction == MessageDirection.INBOUND]
         if not inbound:
             return "no_inbound_message", None
-        trigger = inbound[-1]
-        if trigger.suppress_auto_reply:
-            return "sender_opted_out", None  # lists, robots, X-Auto-Response-Suppress
-        if (
-            lead.source == Channel.WHATSAPP
-            and datetime.now(UTC) - trigger.occurred_at > WHATSAPP_WINDOW
-        ):
-            return "outside_whatsapp_window", None
-        return None, trigger
+        return _trigger_problem(lead, inbound[-1]), inbound[-1]
 
     async def _new_reply(self, lead: Lead, trigger: Message) -> Message:
         templates = await load_settings(self._session, AutoReplyTemplates)
@@ -233,6 +240,14 @@ class AutoReplyService:
         body = render_reply(
             templates, language=lead.language, name=contact.name if contact else None
         )
+        return await self.build_outbound(lead, trigger, body, sent_by=None)
+
+    async def build_outbound(
+        self, lead: Lead, trigger: Message, body: str, *, sent_by: uuid.UUID | None
+    ) -> Message:
+        """A queued reply to `trigger` on its channel: threaded under it, from the mailbox it
+        arrived at. `sent_by` None means the automatic acknowledgement."""
+        templates = await load_settings(self._session, AutoReplyTemplates)
         if lead.source == Channel.EMAIL:
             mailbox = (
                 await self._session.get(Mailbox, trigger.mailbox_id) if trigger.mailbox_id else None
@@ -248,7 +263,8 @@ class AutoReplyService:
                 sender_address=sender,
                 subject=reply_subject(trigger.subject, templates.subject_prefix)[:998],
                 body_text=body,
-                is_auto_reply=True,
+                is_auto_reply=sent_by is None,
+                sent_by_user_id=sent_by,
                 delivery_status=DeliveryStatus.QUEUED,
                 occurred_at=datetime.now(UTC),
             )
@@ -259,7 +275,8 @@ class AutoReplyService:
             thread_ref=trigger.external_id,
             sender_address=self._settings.whatsapp_phone_number_id or "whatsapp",
             body_text=body,
-            is_auto_reply=True,
+            is_auto_reply=sent_by is None,
+            sent_by_user_id=sent_by,
             delivery_status=DeliveryStatus.QUEUED,
             occurred_at=datetime.now(UTC),
         )
@@ -310,6 +327,7 @@ class AutoReplyService:
                 message_id=reply.external_id,
                 in_reply_to=in_reply_to,
                 references=references,
+                automatic=reply.is_auto_reply,
             )
         except ValueError as exc:  # a header the email library refuses; nothing was sent
             raise SendError(f"Couldn't build the email: {exc}", retryable=False) from exc
@@ -329,9 +347,25 @@ class AutoReplyService:
         reply.delivery_error = error[:ERROR_CHARS]
         self._leads.add_event(
             reply.lead_id,
-            LeadEventType.AUTO_REPLIED,
+            _event_type(reply),
             {"message_id": str(reply.id), "status": "failed", "error": error[:300]},
         )
         await self._session.commit()
-        logger.error("auto_reply_failed", lead_id=str(reply.lead_id), error=error[:300])
+        logger.error("outbound_failed", lead_id=str(reply.lead_id), error=error[:300])
         return AutoReplyOutcome.FAILED
+
+
+def _event_type(message: Message) -> LeadEventType:
+    return LeadEventType.AUTO_REPLIED if message.is_auto_reply else LeadEventType.REPLIED
+
+
+def _trigger_problem(lead: Lead, trigger: Message) -> str | None:
+    """Why the customer's latest message mustn't be acknowledged, or None."""
+    if trigger.suppress_auto_reply:
+        return "sender_opted_out"  # lists, robots, X-Auto-Response-Suppress
+    if (
+        lead.source == Channel.WHATSAPP
+        and datetime.now(UTC) - trigger.occurred_at > WHATSAPP_WINDOW
+    ):
+        return "outside_whatsapp_window"
+    return None
