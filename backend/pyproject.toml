@@ -45,7 +45,7 @@ select = ["E", "W", "F", "I", "B", "UP", "N", "S", "ASYNC", "C4", "SIM", "RUF", 
 ignore = ["PLR0913"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "PLR2004"]
+"tests/**" = ["S101", "S105", "S106", "PLR2004"]
 "migrations/**" = ["N999", "E402"]
 
 [tool.mypy]
@@ -55,7 +55,7 @@ plugins = ["pydantic.mypy"]
 exclude = ["migrations/"]
 
 [[tool.mypy.overrides]]
-module = ["procrastinate.*", "imap_tools.*"]
+module = ["procrastinate.*", "imap_tools.*", "asyncpg.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

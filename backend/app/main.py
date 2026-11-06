@@ -9,9 +9,9 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
+from app.api.error_handlers import register_error_handlers
 from app.api.v1.router import api_router
 from app.core.config import Settings, get_settings
-from app.core.errors import register_error_handlers
 from app.core.logging import configure_logging
 
 

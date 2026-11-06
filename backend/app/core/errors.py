@@ -1,11 +1,9 @@
-"""Domain exceptions and their single mapping to HTTP responses."""
-
-from fastapi import FastAPI, Request, status
-from fastapi.responses import JSONResponse
+"""Domain exceptions. Framework-free so services can raise them; `app.api.error_handlers`
+maps them to HTTP responses."""
 
 
 class AppError(Exception):
-    status_code = status.HTTP_400_BAD_REQUEST
+    status_code = 400
     code = "bad_request"
 
     def __init__(self, message: str) -> None:
@@ -14,33 +12,20 @@ class AppError(Exception):
 
 
 class NotFoundError(AppError):
-    status_code = status.HTTP_404_NOT_FOUND
+    status_code = 404
     code = "not_found"
 
 
 class ConflictError(AppError):
-    status_code = status.HTTP_409_CONFLICT
+    status_code = 409
     code = "conflict"
 
 
 class AuthenticationError(AppError):
-    status_code = status.HTTP_401_UNAUTHORIZED
+    status_code = 401
     code = "unauthenticated"
 
 
 class PermissionDeniedError(AppError):
-    status_code = status.HTTP_403_FORBIDDEN
+    status_code = 403
     code = "forbidden"
-
-
-async def _app_error_handler(_: Request, exc: Exception) -> JSONResponse:
-    if not isinstance(exc, AppError):  # registered only for AppError; narrows the type
-        raise exc
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"error": {"code": exc.code, "message": exc.message}},
-    )
-
-
-def register_error_handlers(app: FastAPI) -> None:
-    app.add_exception_handler(AppError, _app_error_handler)

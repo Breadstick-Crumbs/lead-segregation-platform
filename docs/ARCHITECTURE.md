@@ -105,20 +105,30 @@ frontend/
 
 ## Data model (core tables)
 
-| Table | Key columns |
-|-------|-------------|
-| `users` | id, email, name, role (`admin`/`sales_rep`), password_hash, is_active |
-| `contacts` | id, name, email, phone_e164, company_name, company_domain, first_seen_at |
-| `leads` | id, contact_id, source (`email`/`whatsapp`), category, score, priority, status, owner_id, language, processing_state, created_at, first_response_at, converted_at |
-| `messages` | id, lead_id, channel, direction (`inbound`/`outbound`), external_id (unique per channel), thread_ref, subject, body_text, sent_by (`system`/user id), delivery_status, created_at |
-| `lead_scores` | id, lead_id, total, breakdown (JSONB), rationale, model, prompt_version, created_at |
-| `lead_events` | id, lead_id, type (status_changed, assigned, auto_replied, escalated, note…), actor_id, payload (JSONB), created_at |
-| `notifications` | id, user_id, lead_id, kind, channel, read_at, created_at |
-| `mailboxes` | id, name, imap_host, smtp_host, username, auth_type (`password`/`oauth2_xoauth2`), encrypted_secret, uidvalidity, last_uid, is_active |
-| `settings` | key, value (JSONB): thresholds, weights, keyword lists, auto-reply templates, assignment rules |
+Defined in `backend/app/models/`; the initial migration is the source of truth.
 
-`lead_events` is the audit trail and powers response history and conversion
-tracking (time-to-first-response, status funnel).
+| Table | Key columns and guarantees |
+|-------|----------------------------|
+| `users` | email (unique, CHECK lower-case), full_name, role (`admin`/`sales_rep`), password_hash (Argon2id), is_active, last_login_at. At least one active admin always remains (row-locked check). |
+| `refresh_tokens` | user_id, token_hash (SHA-256, unique), family_id, expires_at, revoked_at. Claimed with one atomic `UPDATE … RETURNING`; reuse of a rotated token revokes the family. |
+| `contacts` | name, email (unique, lower-case), phone_e164 (unique), company_name, company_domain. CHECK: email or phone present. |
+| `leads` | contact_id, source, category, score (0–100), priority, status, owner_id, language, summary, processing_state, processing_error, first_response_at, converted_at |
+| `messages` | lead_id, mailbox_id, channel, direction, external_id, thread_ref, sender_address, subject, body_text, is_auto_reply, sent_by_user_id, delivery_status, occurred_at. UNIQUE (channel, external_id); inbound rows must have an external_id (an email without Message-ID gets a synthesized one); at most one auto-reply per lead (partial unique index). |
+| `lead_scores` | lead_id, total, breakdown (JSONB), rationale, model, prompt_version |
+| `lead_events` | lead_id, type, actor_id, payload (JSONB). Append-only audit trail. |
+| `notifications` | user_id, lead_id, kind, title, body, read_at (in-app only; email and Slack deliveries are lead events) |
+| `mailboxes` | name, email_address, imap/smtp host and port, username, auth_type (`password`/`oauth2_xoauth2`), encrypted_secret (Fernet), folder, uidvalidity, last_uid, last_polled_at, last_error, is_active |
+| `app_settings` | key, value (JSONB), updated_by_id. Validated by `app/schemas/app_settings.py`. |
+
+`lead_events` powers response history and conversion tracking
+(time-to-first-response, status funnel).
+
+**Auto-reply sending:** insert the auto-reply message row first (`queued`), send it, then
+update its `delivery_status`. A failed send is retried by updating that same row; inserting
+a second one would violate the one-auto-reply index.
+
+**Auth on the client:** refresh rotation treats a second use of a token as theft, so the
+dashboard must refresh single-flight (one shared in-flight promise, coordinated across tabs).
 
 ## Lead lifecycle
 

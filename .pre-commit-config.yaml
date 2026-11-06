@@ -23,7 +23,7 @@ repos:
         pass_filenames: false
       - id: mypy
         name: mypy
-        entry: bash -c 'cd backend && uv run mypy app'
+        entry: bash -c 'cd backend && uv run mypy app tests'
         language: system
         files: ^backend/.*\.py$
         pass_filenames: false

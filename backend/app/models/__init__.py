@@ -1,0 +1,22 @@
+"""Importing this package registers every model on `Base.metadata` (used by Alembic)."""
+
+from app.models.contact import Contact
+from app.models.lead import Lead, LeadEvent, LeadScore
+from app.models.mailbox import Mailbox
+from app.models.message import Message
+from app.models.notification import Notification
+from app.models.setting import AppSetting
+from app.models.user import RefreshToken, User
+
+__all__ = [
+    "AppSetting",
+    "Contact",
+    "Lead",
+    "LeadEvent",
+    "LeadScore",
+    "Mailbox",
+    "Message",
+    "Notification",
+    "RefreshToken",
+    "User",
+]

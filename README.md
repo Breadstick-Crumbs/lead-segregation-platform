@@ -17,7 +17,8 @@ Requires Docker Desktop, uv, Node 22 and pnpm.
 ```bash
 cp .env.example backend/.env
 docker compose up -d postgres
-cd backend && uv sync && uv run alembic upgrade head && uv run fastapi dev app/main.py
+cd backend && uv sync && uv run alembic upgrade head && uv run python -m app.scripts.seed
+uv run fastapi dev app/main.py
 cd frontend && pnpm install && pnpm dev
 ```
 
