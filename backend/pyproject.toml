@@ -9,8 +9,10 @@ dependencies = [
     "cryptography>=50.0.2",
     "fastapi[standard]>=0.162,<0.163",
     "httpx>=0.28",
+    "httpx2>=2.16",
     "imap-tools>=1.16",
     "openai>=3.46",
+    "pgvector>=0.4",
     "procrastinate>=3.10",
     "psycopg[binary]>=3.3",
     "pwdlib[argon2]>=0.3",
@@ -63,7 +65,7 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
-addopts = "-ra --strict-markers"
+addopts = "-ra --strict-markers -m 'not live_llm'"
 markers = [
     "integration: needs a running Postgres",
     "live_llm: calls the real OpenAI API (off by default)",

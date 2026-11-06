@@ -15,6 +15,16 @@ class _Settings(Settings):
     model_config = SettingsConfigDict(env_file=None, extra="ignore")
 
 
+def test_blank_optional_settings_count_as_unset() -> None:
+    # Regression: `OPENAI_API_KEY=` from .env.example loaded as an empty key, so OpenAI
+    # jobs crashed on the SDK's "missing credentials" instead of failing the lead cleanly.
+    settings = _Settings(openai_api_key="", whatsapp_app_secret="  ", sentry_dsn="")
+
+    assert settings.openai_api_key is None
+    assert settings.whatsapp_app_secret is None
+    assert settings.sentry_dsn is None
+
+
 def test_production_rejects_default_jwt_secret() -> None:
     with pytest.raises(ValidationError, match="JWT_SECRET must be set"):
         _Settings(environment="production")

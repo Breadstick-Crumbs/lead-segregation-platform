@@ -13,6 +13,7 @@ from app.integrations.whatsapp import WhatsAppClient, WhatsAppError, parse_webho
 from app.models import InboundWebhook, Message
 from app.models.enums import MessageKind, TranscriptionStatus, WebhookSource
 from app.services.ingestion import IngestionService, Outcome
+from app.services.lead_queue import enqueue_process_lead
 from app.workers import names
 from app.workers.queue import enqueue
 
@@ -116,10 +117,5 @@ class VoiceNotes:
     async def _finish(self, message: Message, text: str, status: TranscriptionStatus) -> None:
         message.body_text = text
         message.transcription_status = status
-        await enqueue(
-            self._session,
-            names.PROCESS_LEAD,
-            queueing_lock=f"process_lead:{message.lead_id}",
-            lead_id=str(message.lead_id),
-        )
+        await enqueue_process_lead(self._session, message.lead_id)
         await self._session.commit()

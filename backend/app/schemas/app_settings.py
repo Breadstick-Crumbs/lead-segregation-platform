@@ -119,10 +119,25 @@ class IngestionSettings(SettingsModel):
     initial_lookback_days: int = Field(1, ge=0, le=90)
 
 
+class SimilaritySettings(SettingsModel):
+    """pgvector lookups. Similarity is cosine similarity (1 = identical text)."""
+
+    KEY: ClassVar[str] = "ai.similarity"
+
+    # Neighbours at least this similar count as "leads like this" for the history factor.
+    similar_min: float = Field(0.75, ge=0, le=1)
+    similar_limit: int = Field(10, ge=1, le=50)
+    # A lead this similar to one from a *different* contact, within the window, is flagged as
+    # a possible duplicate (the same person writing from two addresses).
+    duplicate_min: float = Field(0.95, ge=0, le=1)
+    duplicate_window_days: int = Field(7, ge=1, le=90)
+
+
 DEFAULT_SETTINGS: tuple[SettingsModel, ...] = (
     ScoringWeights(),
     ScoringThresholds(),
     ScoringKeywords(),
     AutoReplyTemplates(),
     IngestionSettings(),
+    SimilaritySettings(),
 )

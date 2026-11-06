@@ -10,6 +10,7 @@ shows everything on a dashboard with reporting.
 - Stack and tooling: [docs/TECH_STACK.md](docs/TECH_STACK.md)
 - Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)
 - Ingestion and Meta/mailbox setup: [docs/INGESTION.md](docs/INGESTION.md)
+- AI pipeline, guarantees and classifier evaluation: [docs/AI_PIPELINE.md](docs/AI_PIPELINE.md)
 
 ## Quick start
 

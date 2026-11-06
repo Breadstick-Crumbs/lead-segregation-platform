@@ -27,13 +27,13 @@ from app.models.enums import (
     LeadEventType,
     MessageDirection,
     MessageKind,
-    ProcessingState,
     TranscriptionStatus,
 )
 from app.repositories.leads import ContactRepository, LeadRepository, MessageRepository
 from app.schemas.app_settings import IngestionSettings
 from app.schemas.inbound import InboundMessage
 from app.services.app_settings import load_settings
+from app.services.lead_queue import enqueue_process_lead
 from app.workers import names
 from app.workers.queue import enqueue
 
@@ -111,8 +111,11 @@ class IngestionService:
             await self._leads.add(lead)
             self._leads.add_event(lead.id, LeadEventType.CREATED, {"channel": message.channel})
         else:
-            # New information: the AI pipeline re-reads the conversation.
-            lead.processing_state = ProcessingState.PENDING
+            # New information: the AI pipeline re-reads the conversation. An explicit UPDATE
+            # (not an attribute change, which is skipped when the value looks unchanged) takes
+            # the row lock, so it waits for a pipeline run that is saving its result and then
+            # reopens the lead instead of being overwritten by `processed`.
+            await self._leads.mark_pending(lead.id)
 
         stored = self._message_row(message, lead.id, external_id, thread_refs)
         await self._messages.add(stored)
@@ -125,12 +128,7 @@ class IngestionService:
         if stored.transcription_status == TranscriptionStatus.PENDING:
             await enqueue(self._session, names.TRANSCRIBE_MESSAGE, message_id=str(stored.id))
         else:
-            await enqueue(
-                self._session,
-                names.PROCESS_LEAD,
-                queueing_lock=f"process_lead:{lead.id}",
-                lead_id=str(lead.id),
-            )
+            await enqueue_process_lead(self._session, lead.id)
         await self._session.commit()
         logger.info(
             "inbound_stored",

@@ -2,7 +2,7 @@ import uuid
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import RefreshToken, User
@@ -37,6 +37,22 @@ class UserRepository:
             select(User.id).where(User.role == Role.ADMIN, User.is_active).with_for_update()
         )
         return result.scalars().all()
+
+    async def next_round_robin_rep(self) -> User | None:
+        """The active sales rep assigned least recently (never-assigned reps first).
+
+        Serialised with a transaction-level advisory lock: two leads assigned at once can't
+        both pick the same rep."""
+        await self._session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended('lead_assignment', 0))")
+        )
+        rep: User | None = await self._session.scalar(
+            select(User)
+            .where(User.role == Role.SALES_REP, User.is_active)
+            .order_by(User.last_assigned_at.asc().nulls_first(), User.created_at, User.id)
+            .limit(1)
+        )
+        return rep
 
     def add(self, user: User) -> None:
         self._session.add(user)

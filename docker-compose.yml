@@ -1,7 +1,7 @@
 # Local stack: postgres, the API, the job worker and the dashboard.
 services:
   postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:0.8.7-pg17  # Postgres 17 with the pgvector extension
     restart: unless-stopped
     environment:
       POSTGRES_USER: leads

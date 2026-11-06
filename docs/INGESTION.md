@@ -18,7 +18,7 @@ IMAP (every minute) ──▶ poll_all_mailboxes → poll_mailbox (one per mailb
 voice notes ──▶ transcribe_message: Graph API media download → OpenAI speech-to-text
                                        │
                                        ▼
-                      process_lead → AI pipeline (Phase 3)
+                      process_lead → AI pipeline (docs/AI_PIPELINE.md)
 ```
 
 Jobs run in the **worker** process (Procrastinate, in Postgres). Because SQLAlchemy and
@@ -54,15 +54,11 @@ the rows it refers to. A crash can't leave a lead without its job, or a job with
 - Converted, lost and spam leads are never reopened. A follow-up message puts an open lead
   back to `processing_state = pending` so the AI pipeline re-reads it.
 
-## Notes for Phase 3 (AI pipeline)
+## Hand-off to the AI pipeline
 
-- `process_lead` is a placeholder for now, so leads ingested before Phase 3 sit at
-  `processing_state = pending` with no job. Phase 3 needs a backfill sweep for them.
-- That sweep must skip leads whose voice notes are still being transcribed
-  (`transcription_status = pending`); `transcribe_message` enqueues them when it's done.
-- A follow-up can arrive while `process_lead` is running and set the lead back to
-  `pending`. Phase 3 must write its result conditionally (for example, only if no newer
-  message exists) so that follow-up isn't lost.
+`process_lead` runs the pipeline described in `docs/AI_PIPELINE.md`. The Phase 2 hand-off
+notes are handled there: a sweep re-queues stranded `pending` leads (skipping ones still
+being transcribed), and results are written only if no newer message arrived meanwhile.
 
 ## Setting up WhatsApp (Meta test number)
 

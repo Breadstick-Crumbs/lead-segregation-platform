@@ -2,17 +2,36 @@
 
 import uuid
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
-from sqlalchemy import func, select, text
+from sqlalchemy import exists, func, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Contact, Lead, LeadEvent, Message
-from app.models.enums import Channel, LeadEventType, LeadStatus, MessageDirection
+from app.models.enums import (
+    Channel,
+    LeadCategory,
+    LeadEventType,
+    LeadStatus,
+    MessageDirection,
+    ProcessingState,
+    TranscriptionStatus,
+)
 
 # Leads in these states are finished: a new message from the contact starts a fresh lead.
 CLOSED_STATUSES = (LeadStatus.CONVERTED, LeadStatus.LOST, LeadStatus.SPAM)
+
+
+@dataclass(frozen=True)
+class SimilarLead:
+    lead_id: uuid.UUID
+    contact_id: uuid.UUID
+    status: LeadStatus
+    created_at: datetime
+    similarity: float  # cosine similarity, 1 = identical
 
 
 class ContactRepository:
@@ -93,7 +112,94 @@ class LeadRepository:
         self._session.add(lead)
         await self._session.flush()
 
-    def add_event(self, lead_id: uuid.UUID, kind: LeadEventType, payload: dict[str, str]) -> None:
+    async def mark_pending(self, lead_id: uuid.UUID) -> None:
+        await self._session.execute(
+            update(Lead)
+            .where(Lead.id == lead_id)
+            .values(processing_state=ProcessingState.PENDING, updated_at=func.now())
+            .execution_options(synchronize_session="fetch")
+        )
+
+    async def get(self, lead_id: uuid.UUID, *, for_update: bool = False) -> Lead | None:
+        statement = select(Lead).where(Lead.id == lead_id)
+        if for_update:
+            statement = statement.with_for_update()
+        lead: Lead | None = await self._session.scalar(statement)
+        return lead
+
+    async def has_pending_transcription(self, lead_id: uuid.UUID) -> bool:
+        found = await self._session.scalar(
+            select(
+                exists().where(
+                    Message.lead_id == lead_id,
+                    Message.transcription_status == TranscriptionStatus.PENDING,
+                )
+            )
+        )
+        return bool(found)
+
+    async def contact_history(self, lead: Lead) -> tuple[int, int]:
+        """(earlier leads, converted leads) of this lead's contact. Spam doesn't count, nor do
+        leads opened after this one (when an old lead is re-scored)."""
+        row = (
+            await self._session.execute(
+                select(
+                    func.count(),
+                    func.count().filter(Lead.status == LeadStatus.CONVERTED),
+                ).where(
+                    Lead.contact_id == lead.contact_id,
+                    Lead.id != lead.id,
+                    Lead.created_at <= lead.created_at,
+                    Lead.status != LeadStatus.SPAM,
+                    or_(Lead.category.is_(None), Lead.category != LeadCategory.SPAM),
+                )
+            )
+        ).one()
+        return int(row[0]), int(row[1])
+
+    async def similar(
+        self, embedding: list[float], *, exclude: uuid.UUID, limit: int, min_similarity: float
+    ) -> list[SimilarLead]:
+        """Nearest leads by cosine distance (HNSW index), most similar first."""
+        distance = Lead.embedding.cosine_distance(embedding)
+        rows = await self._session.execute(
+            select(Lead.id, Lead.contact_id, Lead.status, Lead.created_at, distance.label("d"))
+            .where(Lead.embedding.is_not(None), Lead.id != exclude)
+            .order_by(distance)
+            .limit(limit)
+        )
+        return [
+            SimilarLead(row.id, row.contact_id, row.status, row.created_at, 1 - float(row.d))
+            for row in rows
+            if 1 - float(row.d) >= min_similarity
+        ]
+
+    async def stale_pending_ids(self, *, before: datetime, limit: int) -> Sequence[uuid.UUID]:
+        """Open leads waiting for the pipeline with no job queued or running for them (and
+        none of their voice notes still being transcribed)."""
+        transcribing = exists().where(
+            Message.lead_id == Lead.id,
+            Message.transcription_status == TranscriptionStatus.PENDING,
+        )
+        no_job = text(
+            "NOT EXISTS (SELECT 1 FROM procrastinate_jobs j WHERE j.task_name = 'process_lead'"
+            " AND j.status IN ('todo', 'doing') AND j.args->>'lead_id' = leads.id::text)"
+        )
+        result = await self._session.scalars(
+            select(Lead.id)
+            .where(
+                Lead.processing_state == ProcessingState.PENDING,
+                Lead.status.not_in(CLOSED_STATUSES),
+                Lead.updated_at < before,
+                ~transcribing,
+                no_job,
+            )
+            .order_by(Lead.updated_at)
+            .limit(limit)
+        )
+        return result.all()
+
+    def add_event(self, lead_id: uuid.UUID, kind: LeadEventType, payload: dict[str, Any]) -> None:
         self._session.add(LeadEvent(lead_id=lead_id, type=kind, payload=payload))
 
 
@@ -110,3 +216,9 @@ class MessageRepository:
     async def add(self, message: Message) -> None:
         self._session.add(message)
         await self._session.flush()
+
+    async def for_lead(self, lead_id: uuid.UUID) -> Sequence[Message]:
+        result = await self._session.scalars(
+            select(Message).where(Message.lead_id == lead_id).order_by(Message.occurred_at)
+        )
+        return result.all()

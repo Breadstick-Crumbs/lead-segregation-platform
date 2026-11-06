@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import CheckConstraint, ForeignKey, Index, SmallInteger, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -23,6 +24,9 @@ from app.models.enums import (
     ProcessingState,
 )
 
+# Fixed by the column type; the embedding model is asked for exactly this many dimensions.
+EMBEDDING_DIMENSIONS = 1536
+
 
 class Lead(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """One inquiry from a contact. Follow-up messages in the same conversation attach to it."""
@@ -31,6 +35,13 @@ class Lead(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         CheckConstraint("score BETWEEN 0 AND 100", name="score_range"),
         Index("ix_leads_status_created_at", "status", "created_at"),
+        # Approximate nearest-neighbour search for similar leads (cosine distance).
+        Index(
+            "ix_leads_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
     )
 
     contact_id: Mapped[uuid.UUID] = mapped_column(
@@ -58,6 +69,12 @@ class Lead(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     processing_error: Mapped[str | None] = mapped_column(Text)
     first_response_at: Mapped[datetime | None] = mapped_column(tz_datetime())
     converted_at: Mapped[datetime | None] = mapped_column(tz_datetime())
+    # Embedding of the conversation text: similar leads, duplicates across addresses.
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIMENSIONS))
+    # Near-identical text from a different contact shortly before (one sender, two addresses).
+    possible_duplicate_of_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("leads.id", ondelete="SET NULL")
+    )
 
 
 class LeadScore(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):

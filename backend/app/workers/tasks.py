@@ -4,6 +4,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from procrastinate import JobContext, RetryStrategy
+from procrastinate.jobs import Status
 from sqlalchemy import delete
 
 from app.core.config import get_settings
@@ -11,8 +12,17 @@ from app.core.logging import get_logger
 from app.db.session import SessionFactory
 from app.integrations.imap import ImapToolsReader
 from app.integrations.openai_audio import OpenAITranscriber, Transcriber, TranscriptionError
+from app.integrations.openai_llm import (
+    AIError,
+    Embedder,
+    LeadAnalyzer,
+    OpenAIEmbedder,
+    OpenAILeadAnalyzer,
+)
 from app.integrations.whatsapp import WhatsAppClient, WhatsAppError
 from app.models import InboundWebhook
+from app.services.lead_pipeline import LeadPipeline
+from app.services.lead_queue import sweep_pending_leads
 from app.services.mailboxes import MailboxService, enqueue_poll
 from app.services.whatsapp_inbox import VoiceNotes, WhatsAppInbox
 from app.workers import names
@@ -22,6 +32,8 @@ logger = get_logger(__name__)
 
 # procrastinate's max_attempts counts *retries*: N retries means N + 1 runs.
 TRANSCRIBE_RUNS = 5
+PROCESS_LEAD_RUNS = 5
+STALLED_AFTER_SECONDS = 300  # no worker heartbeat for 5 minutes
 RETRY = RetryStrategy(max_attempts=4, exponential_wait=5)  # 5 runs: waits ~5s, 25s, 2m, 10m
 KEEP_SUCCEEDED_JOBS_HOURS = 7 * 24
 KEEP_PROCESSED_WEBHOOKS = timedelta(days=30)
@@ -65,11 +77,44 @@ async def transcribe_message(context: JobContext, message_id: str) -> None:
         )
 
 
-@app.task(name=names.PROCESS_LEAD, retry=RETRY)
-async def process_lead(lead_id: str) -> None:
-    """Classification, scoring and auto-reply arrive in Phase 3/4. Until then the lead stays
-    `pending`, ready for the pipeline."""
-    logger.info("process_lead_awaiting_ai_pipeline", lead_id=lead_id)
+@app.task(
+    name=names.PROCESS_LEAD,
+    retry=RetryStrategy(max_attempts=PROCESS_LEAD_RUNS - 1, exponential_wait=5),
+    pass_context=True,
+)
+async def process_lead(context: JobContext, lead_id: str) -> None:
+    settings = get_settings()
+    analyzer: LeadAnalyzer | None
+    embedder: Embedder | None
+    try:
+        analyzer, embedder = OpenAILeadAnalyzer(settings), OpenAIEmbedder(settings)
+    except AIError:
+        analyzer = embedder = None
+    final_attempt = context.job.attempts >= PROCESS_LEAD_RUNS - 1
+    async with SessionFactory() as session:
+        outcome = await LeadPipeline(session, analyzer, embedder).process(
+            uuid.UUID(lead_id), final_attempt=final_attempt
+        )
+    logger.info("process_lead_done", lead_id=lead_id, outcome=outcome)
+
+
+@app.periodic(cron="*/5 * * * *")
+@app.task(name=names.SWEEP_PENDING_LEADS)
+async def sweep_pending(timestamp: int) -> None:
+    """Every 5 minutes, re-queue leads left pending without a job (for example, ingested
+    before the pipeline existed, or after a job was deleted)."""
+    # A worker that died mid-run leaves its job `doing` forever, and the sweep skips leads
+    # with a running job. Jobs whose worker stopped sending heartbeats are marked failed, so
+    # their leads are picked up below.
+    for job in await app.job_manager.get_stalled_jobs(
+        task_name=names.PROCESS_LEAD, seconds_since_heartbeat=STALLED_AFTER_SECONDS
+    ):
+        await app.job_manager.finish_job(job, status=Status.FAILED, delete_job=False)
+        logger.warning("stalled_process_lead_failed", job_id=job.id)
+    async with SessionFactory() as session:
+        queued = await sweep_pending_leads(session)
+    if queued:
+        logger.info("pending_leads_requeued", count=queued)
 
 
 @app.task(name=names.POLL_MAILBOX, retry=RetryStrategy(max_attempts=1, wait=30))

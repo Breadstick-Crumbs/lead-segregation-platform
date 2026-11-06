@@ -28,6 +28,8 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     entra_oid: Mapped[uuid.UUID | None] = mapped_column(unique=True)
     is_active: Mapped[bool] = mapped_column(default=True, server_default="true")
     last_login_at: Mapped[datetime | None] = mapped_column(tz_datetime())
+    # Round-robin assignment gives the next lead to the rep assigned least recently.
+    last_assigned_at: Mapped[datetime | None] = mapped_column(tz_datetime())
 
     @property
     def has_password(self) -> bool:
