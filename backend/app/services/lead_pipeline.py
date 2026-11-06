@@ -42,6 +42,7 @@ from app.schemas.app_settings import (
     SimilaritySettings,
 )
 from app.services.app_settings import load_settings
+from app.services.auto_reply import enqueue_auto_reply, wants_auto_reply
 from app.services.lead_queue import has_waiting_job
 from app.services.scoring import History, RuleSignals, ScoreResult, score_lead
 
@@ -194,6 +195,7 @@ class LeadPipeline:
             similar_converted=sum(1 for n in others if n.status == LeadStatus.CONVERTED),
             similar_lost=sum(1 for n in others if n.status == LeadStatus.LOST),
         )
+        thresholds = await load_settings(self._session, ScoringThresholds)
         result = score_lead(
             analysis,
             RuleSignals(
@@ -202,7 +204,7 @@ class LeadPipeline:
                 history=history,
             ),
             weights=await load_settings(self._session, ScoringWeights),
-            thresholds=await load_settings(self._session, ScoringThresholds),
+            thresholds=thresholds,
             keywords=(await load_settings(self._session, ScoringKeywords)).rules,
         )
 
@@ -222,6 +224,11 @@ class LeadPipeline:
                 lead.possible_duplicate_of_id = duplicate.lead_id
 
         await self._apply(lead, analysis, embedding, result, model=self._model_name())
+        # Queued in the same transaction as the score that justifies it.
+        if wants_auto_reply(result.total, analysis.category, thresholds) and (
+            await self._messages.auto_reply_for(lead.id) is None
+        ):
+            await enqueue_auto_reply(self._session, lead.id)
         await self._session.commit()
         logger.info(
             "lead_processed",

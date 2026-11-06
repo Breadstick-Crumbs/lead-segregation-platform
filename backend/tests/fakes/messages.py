@@ -96,3 +96,36 @@ def raw_email(
     else:
         msg.set_content(body)
     return msg.as_bytes()
+
+
+def wa_status_payload(
+    *statuses: tuple[str, str, dict[str, Any] | None],
+) -> dict[str, Any]:
+    """A delivery-receipt webhook: (wamid, status, error or None) per entry."""
+    return {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "WABA_ID",
+                "changes": [
+                    {
+                        "field": "messages",
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {"phone_number_id": PHONE_NUMBER_ID},
+                            "statuses": [
+                                {
+                                    "id": wamid,
+                                    "status": status,
+                                    "timestamp": "1700000000",
+                                    "recipient_id": "971501234567",
+                                    **({"errors": [error]} if error else {}),
+                                }
+                                for wamid, status, error in statuses
+                            ],
+                        },
+                    }
+                ],
+            }
+        ],
+    }

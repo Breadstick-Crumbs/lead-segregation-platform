@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Contact, Lead, LeadEvent, Message
 from app.models.enums import (
     Channel,
+    DeliveryStatus,
     LeadCategory,
     LeadEventType,
     LeadStatus,
@@ -23,6 +24,22 @@ from app.models.enums import (
 
 # Leads in these states are finished: a new message from the contact starts a fresh lead.
 CLOSED_STATUSES = (LeadStatus.CONVERTED, LeadStatus.LOST, LeadStatus.SPAM)
+
+
+_DELIVERY_RANK = {
+    DeliveryStatus.QUEUED: 1,
+    DeliveryStatus.SENT: 2,
+    DeliveryStatus.DELIVERED: 3,
+    DeliveryStatus.READ: 4,
+}
+
+
+@dataclass(frozen=True)
+class DeliveryUpdate:
+    channel: Channel
+    external_id: str
+    status: DeliveryStatus
+    error: str | None = None
 
 
 @dataclass(frozen=True)
@@ -216,6 +233,60 @@ class MessageRepository:
     async def add(self, message: Message) -> None:
         self._session.add(message)
         await self._session.flush()
+
+    async def by_external_id(self, channel: Channel, external_id: str) -> Message | None:
+        message: Message | None = await self._session.scalar(
+            select(Message).where(Message.channel == channel, Message.external_id == external_id)
+        )
+        return message
+
+    async def claim_send(self, message_id: uuid.UUID) -> bool:
+        """Mark a queued outbound message as being sent, unless another run already has."""
+        claimed = await self._session.scalar(
+            update(Message)
+            .where(
+                Message.id == message_id,
+                Message.delivery_status == DeliveryStatus.QUEUED,
+                Message.send_started_at.is_(None),
+            )
+            .values(send_started_at=func.now())
+            .returning(Message.id)
+            .execution_options(synchronize_session="fetch")
+        )
+        return claimed is not None
+
+    async def auto_reply_for(self, lead_id: uuid.UUID) -> Message | None:
+        message: Message | None = await self._session.scalar(
+            select(Message).where(Message.lead_id == lead_id, Message.is_auto_reply)
+        )
+        return message
+
+    async def apply_status(self, update_: DeliveryUpdate) -> bool:
+        """Record a provider receipt on our outbound message. Statuses only move forward
+        (sent → delivered → read); a late `failed` can't undo a delivery. Returns False when
+        no message of ours has this id (yet)."""
+        message: Message | None = await self._session.scalar(
+            select(Message)
+            .where(
+                Message.channel == update_.channel,
+                Message.external_id == update_.external_id,
+                Message.direction == MessageDirection.OUTBOUND,
+            )
+            .with_for_update()
+        )
+        if message is None:
+            return False
+        current = _DELIVERY_RANK.get(message.delivery_status, 0)
+        if update_.status == DeliveryStatus.FAILED:
+            if current >= _DELIVERY_RANK[DeliveryStatus.DELIVERED]:
+                return True  # a late `failed` can't undo a delivery
+            message.delivery_error = update_.error
+        elif _DELIVERY_RANK[update_.status] <= current:
+            return True  # known message, stale receipt
+        else:
+            message.delivery_error = None
+        message.delivery_status = update_.status
+        return True
 
     async def for_lead(self, lead_id: uuid.UUID) -> Sequence[Message]:
         result = await self._session.scalars(

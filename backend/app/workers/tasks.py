@@ -19,8 +19,12 @@ from app.integrations.openai_llm import (
     OpenAIEmbedder,
     OpenAILeadAnalyzer,
 )
+from app.integrations.smtp import AioSmtpSender
 from app.integrations.whatsapp import WhatsAppClient, WhatsAppError
 from app.models import InboundWebhook
+from app.models.enums import Channel, DeliveryStatus
+from app.repositories.leads import DeliveryUpdate
+from app.services.auto_reply import AutoReplyService, enqueue_auto_reply
 from app.services.lead_pipeline import LeadPipeline
 from app.services.lead_queue import sweep_pending_leads
 from app.services.mailboxes import MailboxService, enqueue_poll
@@ -33,6 +37,7 @@ logger = get_logger(__name__)
 # procrastinate's max_attempts counts *retries*: N retries means N + 1 runs.
 TRANSCRIBE_RUNS = 5
 PROCESS_LEAD_RUNS = 5
+AUTO_REPLY_RUNS = 5
 STALLED_AFTER_SECONDS = 300  # no worker heartbeat for 5 minutes
 RETRY = RetryStrategy(max_attempts=4, exponential_wait=5)  # 5 runs: waits ~5s, 25s, 2m, 10m
 KEEP_SUCCEEDED_JOBS_HOURS = 7 * 24
@@ -106,15 +111,58 @@ async def sweep_pending(timestamp: int) -> None:
     # A worker that died mid-run leaves its job `doing` forever, and the sweep skips leads
     # with a running job. Jobs whose worker stopped sending heartbeats are marked failed, so
     # their leads are picked up below.
-    for job in await app.job_manager.get_stalled_jobs(
-        task_name=names.PROCESS_LEAD, seconds_since_heartbeat=STALLED_AFTER_SECONDS
-    ):
-        await app.job_manager.finish_job(job, status=Status.FAILED, delete_job=False)
-        logger.warning("stalled_process_lead_failed", job_id=job.id)
+    for task_name in (names.PROCESS_LEAD, names.SEND_AUTO_REPLY):
+        for job in await app.job_manager.get_stalled_jobs(
+            task_name=task_name, seconds_since_heartbeat=STALLED_AFTER_SECONDS
+        ):
+            if task_name == names.SEND_AUTO_REPLY:
+                # Queue the follow-up *before* failing the stalled job, so a crash in
+                # between can't lose it (the job's lock holds it until the old one ends).
+                # It resolves the reply: unsent → sends; cut off → "outcome unknown".
+                async with SessionFactory() as session:
+                    await enqueue_auto_reply(session, uuid.UUID(str(job.task_kwargs["lead_id"])))
+                    await session.commit()
+            await app.job_manager.finish_job(job, status=Status.FAILED, delete_job=False)
+            logger.warning("stalled_job_failed", task=task_name, job_id=job.id)
     async with SessionFactory() as session:
         queued = await sweep_pending_leads(session)
     if queued:
         logger.info("pending_leads_requeued", count=queued)
+
+
+@app.task(
+    name=names.SEND_AUTO_REPLY,
+    retry=RetryStrategy(max_attempts=AUTO_REPLY_RUNS - 1, exponential_wait=5),
+    pass_context=True,
+)
+async def send_auto_reply(context: JobContext, lead_id: str) -> None:
+    settings = get_settings()
+    try:
+        whatsapp: WhatsAppClient | None = WhatsAppClient.from_settings(settings)
+    except WhatsAppError:
+        whatsapp = None
+    final_attempt = context.job.attempts >= AUTO_REPLY_RUNS - 1
+    async with SessionFactory() as session:
+        outcome = await AutoReplyService(
+            session, settings, email=AioSmtpSender(), whatsapp=whatsapp
+        ).send(uuid.UUID(lead_id), final_attempt=final_attempt)
+    logger.info("send_auto_reply_done", lead_id=lead_id, outcome=outcome)
+
+
+@app.task(name=names.RECHECK_DELIVERY_RECEIPTS)
+async def recheck_delivery_receipts(receipts: list[dict[str, str | None]]) -> None:
+    updates = [
+        DeliveryUpdate(
+            Channel.WHATSAPP, str(r["wamid"]), DeliveryStatus(str(r["status"])), r.get("error")
+        )
+        for r in receipts
+    ]
+    async with SessionFactory() as session:
+        dropped = await WhatsAppInbox(session, get_settings()).apply_receipts(
+            updates, recheck_unmatched=False
+        )
+    if dropped:
+        logger.info("delivery_receipts_unmatched", count=dropped)
 
 
 @app.task(name=names.POLL_MAILBOX, retry=RetryStrategy(max_attempts=1, wait=30))

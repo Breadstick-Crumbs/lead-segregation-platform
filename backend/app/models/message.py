@@ -66,3 +66,8 @@ class Message(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         str_enum(DeliveryStatus, "delivery_status")
     )
     occurred_at: Mapped[datetime] = mapped_column(tz_datetime())  # received or sent time
+    # Outbound only. Set just before handing the message to the provider and cleared if
+    # the provider certainly didn't take it; a row still `queued` with this set means the
+    # outcome is unknown, so it is never sent again (at most once).
+    send_started_at: Mapped[datetime | None] = mapped_column(tz_datetime())
+    delivery_error: Mapped[str | None] = mapped_column(Text)

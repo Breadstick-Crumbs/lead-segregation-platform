@@ -11,6 +11,7 @@ shows everything on a dashboard with reporting.
 - Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)
 - Ingestion and Meta/mailbox setup: [docs/INGESTION.md](docs/INGESTION.md)
 - AI pipeline, guarantees and classifier evaluation: [docs/AI_PIPELINE.md](docs/AI_PIPELINE.md)
+- Auto-reply (email and WhatsApp), at-most-once sending, delivery receipts: [docs/AUTO_REPLY.md](docs/AUTO_REPLY.md)
 
 ## Quick start
 

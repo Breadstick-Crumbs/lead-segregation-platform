@@ -96,6 +96,8 @@ minutes (default 60) is escalated again by a scheduled sweep.
 
 ## Auto-reply
 
+How sending works, and its at-most-once guarantee: `docs/AUTO_REPLY.md`.
+
 - Sent only when `score > 20`, category ≠ spam, and no auto-reply exists yet for
   this lead (enforced by a DB unique constraint, so it is idempotent).
 - Email replies keep the thread (`In-Reply-To`/`References`) and use

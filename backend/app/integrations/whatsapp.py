@@ -1,7 +1,9 @@
-"""Meta WhatsApp Cloud API: webhook signature check, payload parsing and media download."""
+"""Meta WhatsApp Cloud API: webhook signature check, payload parsing, media download and
+sending text replies."""
 
 import hashlib
 import hmac
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -10,7 +12,7 @@ import httpx
 from app.core.config import Settings
 from app.core.logging import get_logger
 from app.core.text import clean
-from app.models.enums import Channel, MessageKind
+from app.models.enums import Channel, DeliveryStatus, MessageKind
 from app.schemas.inbound import InboundMessage
 
 logger = get_logger(__name__)
@@ -29,6 +31,24 @@ _KINDS = {
     "button": MessageKind.INTERACTIVE,
     "interactive": MessageKind.INTERACTIVE,
 }
+
+
+_STATUSES = {
+    "sent": DeliveryStatus.SENT,
+    "delivered": DeliveryStatus.DELIVERED,
+    "read": DeliveryStatus.READ,
+    "failed": DeliveryStatus.FAILED,
+}
+MAX_TEXT_CHARS = 4096  # Meta's limit for a text message body
+
+
+@dataclass(frozen=True)
+class StatusUpdate:
+    """Meta's report on a message we sent."""
+
+    wamid: str
+    status: DeliveryStatus
+    error: str | None = None
 
 
 class WhatsAppError(Exception):
@@ -68,6 +88,24 @@ def parse_webhook(payload: dict[str, Any], *, phone_number_id: str | None) -> li
             if parsed is not None:
                 messages.append(parsed)
     return messages
+
+
+def parse_statuses(payload: dict[str, Any], *, phone_number_id: str | None) -> list[StatusUpdate]:
+    """Delivery receipts for our outbound messages (sent, delivered, read, failed)."""
+    updates: list[StatusUpdate] = []
+    for value in _message_values(payload, phone_number_id):
+        for raw in _dicts(value.get("statuses")):
+            status = _STATUSES.get(str(raw.get("status")))
+            wamid = raw.get("id")
+            if status is None or not isinstance(wamid, str):
+                continue
+            errors = _dicts(raw.get("errors"))
+            error = None
+            if errors:
+                first = errors[0]
+                error = clean(f"{first.get('code', '')} {first.get('title', '')}".strip(), 500)
+            updates.append(StatusUpdate(wamid=wamid, status=status, error=error))
+    return updates
 
 
 def _dicts(value: object) -> list[dict[str, Any]]:
@@ -181,9 +219,55 @@ class WhatsAppClient:
             raise WhatsAppError("Media too large", retryable=False)
         return download.content, str(info.get("mime_type") or "application/octet-stream")
 
+    async def send_text(
+        self, *, phone_number_id: str, to: str, body: str, reply_to: str | None = None
+    ) -> str:
+        """Send a free-form text (allowed within 24 hours of the customer's last message) and
+        return its wamid. A WhatsAppError is retryable only when Meta certainly didn't accept
+        the message; a timeout after the request went out is not, as it may have been sent."""
+        payload: dict[str, Any] = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": to.removeprefix("+"),
+            "type": "text",
+            "text": {"preview_url": False, "body": body[:MAX_TEXT_CHARS]},
+        }
+        if reply_to:
+            payload["context"] = {"message_id": reply_to}
+        try:
+            async with self._http() as http:
+                response = await http.post(
+                    f"{GRAPH_HOST}/{self._version}/{phone_number_id}/messages", json=payload
+                )
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+            raise WhatsAppError(f"Couldn't reach the Graph API: {exc!r}") from exc
+        except httpx.HTTPError as exc:  # the request may have arrived
+            raise WhatsAppError(f"Send outcome unknown: {exc!r}", retryable=False) from exc
+        if response.status_code != httpx.codes.OK:
+            # 429 is a definite "not now". 4xx are permanent (bad number, closed 24-hour
+            # window); a 5xx may follow acceptance, so it isn't retried (no duplicates).
+            retryable = response.status_code == httpx.codes.TOO_MANY_REQUESTS
+            raise WhatsAppError(
+                f"Send failed: {response.status_code} {_graph_error(response)}",
+                retryable=retryable,
+            )
+        try:
+            wamid = response.json()["messages"][0]["id"]
+        except (ValueError, KeyError, IndexError, TypeError) as exc:
+            raise WhatsAppError("Send returned no message id", retryable=False) from exc
+        return str(wamid)
+
     def _http(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(
             transport=self._transport,
             timeout=HTTP_TIMEOUT_SECONDS,
             headers={"Authorization": f"Bearer {self._token}"},
         )
+
+
+def _graph_error(response: httpx.Response) -> str:
+    try:
+        error = response.json().get("error") or {}
+    except ValueError:
+        return ""
+    return str(clean(f"{error.get('code', '')} {error.get('message', '')}".strip(), 300) or "")

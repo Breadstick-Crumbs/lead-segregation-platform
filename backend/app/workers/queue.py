@@ -15,6 +15,7 @@ async def enqueue(
     *,
     queueing_lock: str | None = None,
     lock: str | None = None,
+    schedule_in: dict[str, int] | None = None,
     **kwargs: Any,
 ) -> bool:
     """Insert a job on the session's connection, so it becomes visible only if the session
@@ -22,14 +23,15 @@ async def enqueue(
 
     `queueing_lock` stops duplicates from *queueing*; `lock` stops jobs that share it from
     *running* at the same time (e.g. two workers polling one mailbox)."""
+    options: dict[str, Any] = {"lock": lock, "schedule_in": schedule_in}
     if queueing_lock is None:
-        await _defer(session, task_name, None, lock, kwargs)
+        await _defer(session, task_name, kwargs, queueing_lock=None, **options)
         return True
     # A lock clash is a unique violation, which would abort the caller's whole transaction;
     # a savepoint confines it to this insert.
     try:
         async with session.begin_nested():
-            await _defer(session, task_name, queueing_lock, lock, kwargs)
+            await _defer(session, task_name, kwargs, queueing_lock=queueing_lock, **options)
     except AlreadyEnqueued:
         return False
     return True
@@ -38,12 +40,18 @@ async def enqueue(
 async def _defer(
     session: AsyncSession,
     task_name: str,
+    kwargs: dict[str, Any],
+    *,
     queueing_lock: str | None,
     lock: str | None,
-    kwargs: dict[str, Any],
+    schedule_in: dict[str, int] | None,
 ) -> None:
     connection = await raw_connection(session)
     deferrer = app.configure_task(
-        name=task_name, connection=connection, queueing_lock=queueing_lock, lock=lock
+        name=task_name,
+        connection=connection,
+        queueing_lock=queueing_lock,
+        lock=lock,
+        schedule_in=schedule_in,
     )
     await deferrer.defer_async(**kwargs)

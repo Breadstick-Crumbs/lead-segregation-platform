@@ -9,9 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings
 from app.core.logging import get_logger
 from app.integrations.openai_audio import Transcriber, TranscriptionError
-from app.integrations.whatsapp import WhatsAppClient, WhatsAppError, parse_webhook
+from app.integrations.whatsapp import (
+    WhatsAppClient,
+    WhatsAppError,
+    parse_statuses,
+    parse_webhook,
+)
 from app.models import InboundWebhook, Message
-from app.models.enums import MessageKind, TranscriptionStatus, WebhookSource
+from app.models.enums import Channel, MessageKind, TranscriptionStatus, WebhookSource
+from app.repositories.leads import DeliveryUpdate, MessageRepository
 from app.services.ingestion import IngestionService, Outcome
 from app.services.lead_queue import enqueue_process_lead
 from app.workers import names
@@ -20,6 +26,7 @@ from app.workers.queue import enqueue
 logger = get_logger(__name__)
 
 TRANSCRIPT_UNAVAILABLE = "[Voice note: transcription unavailable]"
+RECEIPT_RECHECK_SECONDS = 60
 
 
 class WhatsAppInbox:
@@ -51,12 +58,42 @@ class WhatsAppInbox:
             result = await ingestion.ingest(message)  # commits per message
             counts[result.outcome] = counts.get(result.outcome, 0) + 1
 
+        receipts = [
+            DeliveryUpdate(Channel.WHATSAPP, s.wamid, s.status, s.error)
+            for s in parse_statuses(
+                payload, phone_number_id=self._settings.whatsapp_phone_number_id
+            )
+        ]
+        await self.apply_receipts(receipts, recheck_unmatched=True)
+
         webhook = await self._session.get(InboundWebhook, webhook_id)
         if webhook is not None:
             webhook.processed_at = datetime.now(UTC)
             webhook.error = None
             await self._session.commit()
         return counts
+
+    async def apply_receipts(
+        self, receipts: list[DeliveryUpdate], *, recheck_unmatched: bool
+    ) -> int:
+        """Apply delivery receipts; returns how many matched none of our messages. Meta can
+        report on a message before our send has committed its wamid, so unmatched receipts
+        are checked once more a minute later; after that they are someone else's (a message
+        sent from Meta's dashboard, say) and dropped. Commits."""
+        messages = MessageRepository(self._session)
+        unmatched = [r for r in receipts if not await messages.apply_status(r)]
+        if unmatched and recheck_unmatched:
+            await enqueue(
+                self._session,
+                names.RECHECK_DELIVERY_RECEIPTS,
+                schedule_in={"seconds": RECEIPT_RECHECK_SECONDS},
+                receipts=[
+                    {"wamid": r.external_id, "status": r.status, "error": r.error}
+                    for r in unmatched
+                ],
+            )
+        await self._session.commit()
+        return len(unmatched)
 
     async def record_webhook_error(self, webhook_id: uuid.UUID, error: str) -> None:
         await self._session.rollback()
