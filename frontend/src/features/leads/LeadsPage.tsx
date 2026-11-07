@@ -18,6 +18,8 @@ import {
   ErrorState,
   Eyebrow,
   PageHeader,
+  ROW,
+  ROW_LINK,
   Skeleton,
 } from '../../components/ui'
 import { cn } from '../../lib/cn'
@@ -442,13 +444,13 @@ function LeadTable() {
               </thead>
               <tbody>
                 {leads.data.items.map((lead) => (
-                  <tr key={lead.id} className="border-b border-border last:border-0 hover:bg-plate">
+                  <tr key={lead.id} className={cn(ROW, 'border-b border-border last:border-0')}>
                     <td className="max-w-xs px-4 py-3">
                       <Link
                         to="/leads/$leadId"
                         params={{ leadId: lead.id }}
                         dir="auto"
-                        className="block font-semibold text-ink hover:text-accent"
+                        className={cn(ROW_LINK, 'block font-semibold text-ink')}
                       >
                         {leadName(lead)}
                       </Link>

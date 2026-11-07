@@ -15,6 +15,15 @@ import { cn } from '../lib/cn'
 import { Icon, type IconName } from './Icon'
 import { Select } from './Select'
 
+/**
+ * For a table row that opens something: put it on the row's one link, and `ROW` on the
+ * `<tr>`. The link's ::after covers the whole row, so a click anywhere opens it, while it
+ * stays a real link (middle-click, Ctrl+click and the keyboard work; one tab stop per row).
+ */
+export const ROW = 'group relative cursor-pointer transition-colors duration-150 hover:bg-plate'
+export const ROW_LINK =
+  "after:absolute after:inset-0 after:content-[''] group-hover:text-accent focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-accent"
+
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
 const BUTTON: Record<ButtonVariant, string> = {

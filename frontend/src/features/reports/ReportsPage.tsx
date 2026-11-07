@@ -1,7 +1,7 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 
 import { useLeadReport, type Report } from '../../api/generated'
-import { Card, ErrorState, Eyebrow, PageHeader, Skeleton } from '../../components/ui'
+import { Card, ErrorState, Eyebrow, PageHeader, ROW, ROW_LINK, Skeleton } from '../../components/ui'
 import { cn } from '../../lib/cn'
 import { CATEGORY_LABELS, STATUS_LABELS, percent } from '../../lib/format'
 import { ScoreMeter } from '../leads/LeadBits'
@@ -336,13 +336,13 @@ function HighValueCard({ report }: { report: Report }) {
             </thead>
             <tbody>
               {h.top.map((lead) => (
-                <tr key={lead.id} className="border-b border-border last:border-0">
+                <tr key={lead.id} className={cn(ROW, 'border-b border-border last:border-0')}>
                   <td className="py-2.5 pr-4">
                     <Link
                       to="/leads/$leadId"
                       params={{ leadId: lead.id }}
                       dir="auto"
-                      className="font-semibold text-ink hover:text-accent"
+                      className={cn(ROW_LINK, 'font-semibold text-ink')}
                     >
                       {lead.display_name}
                     </Link>
