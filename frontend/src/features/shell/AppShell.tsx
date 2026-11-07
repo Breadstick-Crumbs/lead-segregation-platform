@@ -11,6 +11,7 @@ import { NotificationBell } from '../notifications/NotificationBell'
 import { useNotificationStream } from '../notifications/useNotificationStream'
 import { Toasts } from '../notifications/Toasts'
 import { useTheme } from './theme'
+import { useScrolled } from './useScrolled'
 
 interface NavItem {
   to: '/' | '/reports' | '/ai-apps' | '/settings'
@@ -30,6 +31,7 @@ export function AppShell() {
   const location = useLocation()
   const [theme, toggleTheme] = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
+  const scrolled = useScrolled()
   const live = useNotificationStream(session.status === 'signed-in')
 
   useEffect(() => {
@@ -65,9 +67,18 @@ export function AppShell() {
         Skip to content
       </a>
       <header className="sticky top-0 z-30 px-4 pt-4">
+        {/* Blends into the page at the top; once scrolled it eases into a floating frosted card
+            (the SmartMum navbar, measured: 95% surface, 40px blur, hairline border, soft shadow,
+            0.5s). The padding never changes, so nothing inside moves. */}
         <nav
           aria-label="Main"
-          className="mx-auto flex max-w-7xl items-center gap-3 rounded-card border border-border bg-surface/95 px-3 py-2 backdrop-blur"
+          className={cn(
+            'mx-auto flex max-w-7xl items-center gap-3 rounded-card border px-3 py-2',
+            'transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none',
+            scrolled
+              ? 'border-border/50 bg-surface/95 shadow-lg shadow-ink/5 backdrop-blur-2xl dark:shadow-black/20'
+              : 'border-transparent bg-transparent',
+          )}
         >
           <Link to="/" className="flex items-center gap-2 rounded-control px-2 py-1.5">
             <span className="grid size-8 place-items-center rounded-control bg-accent font-mono text-sm font-bold text-white dark:text-bg">
