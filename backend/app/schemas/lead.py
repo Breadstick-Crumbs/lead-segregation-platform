@@ -5,7 +5,14 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Any
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
 from app.models.enums import (
     Channel,
@@ -15,6 +22,7 @@ from app.models.enums import (
     LeadStatus,
     MessageDirection,
     MessageKind,
+    NotificationKind,
     Priority,
     ProcessingState,
 )
@@ -179,3 +187,46 @@ class LeadFilters(BaseModel):
     sort: LeadSort = LeadSort.NEWEST
     page: int = Field(default=1, ge=1, le=10_000)
     page_size: int = Field(default=25, ge=1, le=100)
+
+
+ShortText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
+
+
+class LeadPreviewRequest(BaseModel):
+    """A message to run through the pipeline without storing it ("Try a lead")."""
+
+    channel: Channel
+    sender_name: ShortText | None = None
+    sender_address: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=3, max_length=320)
+    ] = Field(description="An email address, or a phone number for WhatsApp")
+    subject: ShortText | None = None
+    text: Text
+
+    @model_validator(mode="after")
+    def _address_fits_channel(self) -> "LeadPreviewRequest":
+        if self.channel == Channel.EMAIL and "@" not in self.sender_address:
+            raise ValueError("An email lead needs an email address")
+        if self.channel == Channel.WHATSAPP and not self.sender_address.lstrip("+").isdigit():
+            raise ValueError("A WhatsApp lead needs a phone number, digits only")
+        return self
+
+
+class LeadPreviewRead(BaseModel):
+    """What the pipeline would do with the message. Nothing was stored or sent."""
+
+    category: LeadCategory
+    category_confidence: float
+    language: str
+    summary: str
+    rationale: str
+    company_name: str | None
+    job_title: str | None
+    score: int
+    priority: Priority
+    breakdown: dict[str, Any] = Field(description="The same shape as a stored score's breakdown")
+    auto_reply: str | None = Field(description="The reply that would be sent, if any")
+    alert: NotificationKind | None = Field(description="The alert that would be raised, if any")
+    similar: list[SimilarLeadRead]
+    model: str
+    prompt_version: str

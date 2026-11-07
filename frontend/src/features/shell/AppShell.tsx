@@ -14,7 +14,7 @@ import { useTheme } from './theme'
 import { useScrolled } from './useScrolled'
 
 interface NavItem {
-  to: '/' | '/reports' | '/ai-apps' | '/settings'
+  to: '/' | '/reports' | '/try' | '/ai-apps' | '/settings'
   label: string
   adminOnly?: boolean
 }
@@ -22,6 +22,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { to: '/', label: 'Leads' },
   { to: '/reports', label: 'Reports' },
+  { to: '/try', label: 'Try a lead' },
   { to: '/ai-apps', label: 'AI apps' },
   { to: '/settings', label: 'Settings', adminOnly: true },
 ]

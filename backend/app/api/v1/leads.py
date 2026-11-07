@@ -5,7 +5,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
-from app.api.deps import CurrentUser, SessionDep, SettingsDep
+from app.api.deps import CurrentUser, LeadAIDep, SessionDep, SettingsDep
+from app.integrations.openai_llm import PROMPT_VERSION
 from app.repositories.lead_queries import LeadRow
 from app.schemas.lead import (
     ContactRead,
@@ -14,6 +15,8 @@ from app.schemas.lead import (
     LeadFilters,
     LeadListItem,
     LeadPage,
+    LeadPreviewRead,
+    LeadPreviewRequest,
     LeadRef,
     LeadStats,
     LeadUpdate,
@@ -24,7 +27,8 @@ from app.schemas.lead import (
     SimilarLeadRead,
 )
 from app.schemas.user import UserSummary
-from app.services.leads import LeadService, display_name
+from app.services.lead_preview import LeadPreviewService, PreviewInput
+from app.services.leads import LeadService, SimilarLeadData, display_name
 
 router = APIRouter(prefix="/leads", tags=["leads"])
 
@@ -67,6 +71,42 @@ async def list_leads(
     )
 
 
+@router.post("/preview")
+async def preview_lead(
+    body: LeadPreviewRequest, _: CurrentUser, session: SessionDep, ai: LeadAIDep
+) -> LeadPreviewRead:
+    """Run a message through the AI pipeline without storing or sending anything: its
+    category, score, the auto-reply it would get and the alert it would raise."""
+    analyzer, embedder = ai
+    result = await LeadPreviewService(session, analyzer, embedder).preview(
+        PreviewInput(
+            channel=body.channel,
+            sender_name=body.sender_name,
+            sender_address=body.sender_address,
+            subject=body.subject,
+            text=body.text,
+        )
+    )
+    a = result.analysis
+    return LeadPreviewRead(
+        category=a.category,
+        category_confidence=a.category_confidence,
+        language=a.language,
+        summary=a.summary,
+        rationale=a.rationale,
+        company_name=a.company_name,
+        job_title=a.job_title,
+        score=result.score.total,
+        priority=result.score.priority,
+        breakdown=result.score.breakdown,
+        auto_reply=result.auto_reply,
+        alert=result.alert,
+        similar=[_similar(s) for s in result.similar],
+        model=result.model,
+        prompt_version=PROMPT_VERSION,
+    )
+
+
 @router.get("/stats")
 async def lead_stats(_: CurrentUser, session: SessionDep, settings: SettingsDep) -> LeadStats:
     return LeadStats.model_validate(await LeadService(session, settings).stats())
@@ -106,19 +146,20 @@ async def similar_leads(
     lead_id: uuid.UUID, _: CurrentUser, session: SessionDep, settings: SettingsDep
 ) -> list[SimilarLeadRead]:
     """Nearest past leads by meaning (pgvector), most similar first."""
-    return [
-        SimilarLeadRead(
-            id=s.lead.id,
-            display_name=display_name(s.contact),
-            category=s.lead.category,
-            score=s.lead.score,
-            status=s.lead.status,
-            summary=s.lead.summary,
-            similarity=round(s.similarity, 3),
-            created_at=s.lead.created_at,
-        )
-        for s in await LeadService(session, settings).similar(lead_id)
-    ]
+    return [_similar(s) for s in await LeadService(session, settings).similar(lead_id)]
+
+
+def _similar(s: SimilarLeadData) -> SimilarLeadRead:
+    return SimilarLeadRead(
+        id=s.lead.id,
+        display_name=display_name(s.contact),
+        category=s.lead.category,
+        score=s.lead.score,
+        status=s.lead.status,
+        summary=s.lead.summary,
+        similarity=round(s.similarity, 3),
+        created_at=s.lead.created_at,
+    )
 
 
 @router.patch("/{lead_id}")

@@ -12,6 +12,7 @@ important ones, and reports on everything.
 
 - [What it does](#what-it-does)
 - [How a lead flows through the system](#how-a-lead-flows-through-the-system)
+- [How accurate is the AI?](#how-accurate-is-the-ai)
 - [Try it in 10 minutes](#try-it-in-10-minutes)
 - [Demo walkthrough](#demo-walkthrough)
 - [Use it from Claude or ChatGPT](#use-it-from-claude-or-chatgpt)
@@ -37,6 +38,9 @@ important ones, and reports on everything.
 
 **Beyond the brief**
 
+- **Try a lead:** paste any message, in English or Arabic, and watch the real pipeline
+  classify and score it with OpenAI, live. It shows the reply it would send and who it
+  would alert, and stores nothing.
 - **AI assistant access:** the sales team can connect Claude or ChatGPT and ask things
   like *"Which critical WhatsApp leads are unanswered?"*, then assign or update leads from
   the chat. It uses the same sign-in and permissions as the dashboard (Model Context
@@ -75,6 +79,30 @@ editable in Settings. The full model is in [docs/SCORING.md](docs/SCORING.md).
 
 ---
 
+## How accurate is the AI?
+
+The classifier is measured against 53 hand-labelled leads covering every category, in
+English and Arabic, by email and WhatsApp, including two prompt-injection attempts. It
+uses the real OpenAI model and the production prompt:
+
+| Measure | Result |
+|---------|--------|
+| Category accuracy | **98%** (52/53) |
+| Arabic leads | 100% (13/13) |
+| Language detected correctly | 100% |
+| Score in the expected band | 100% |
+| Spam caught | 100% (10/10) |
+| Prompt injections resisted | 2/2 |
+| Median time per lead | 3.2 s |
+
+The one miss was a "please unsubscribe me" email, labelled General and classified as
+Support. The full report, with per-category precision and recall, a confusion matrix and
+the model's reasoning for the miss, is in
+[docs/CLASSIFIER_EVAL.md](docs/CLASSIFIER_EVAL.md). Regenerate it after any prompt or
+model change with `uv run python -m tests.live.evaluation` (in `backend/`).
+
+---
+
 ## Try it in 10 minutes
 
 **You need:** Docker Desktop (with Compose 2.24 or newer) and Git.
@@ -93,7 +121,8 @@ SEED_DEMO_PASSWORD=choose-a-rep-password
 ```
 
 `OPENAI_API_KEY` is optional for the demo: the sample leads come with their AI analysis
-already written. Then start everything and load the sample data:
+already written. Add it to use **Try a lead** and to score new leads live. Then start
+everything and load the sample data:
 
 ```bash
 docker compose up -d --build
@@ -101,8 +130,12 @@ docker compose exec api alembic upgrade head          # create the database tabl
 docker compose exec api python -m app.scripts.seed    # settings, admin and sales reps
 docker compose stop worker                            # pause background jobs while seeding
 docker compose exec api python -m app.scripts.seed_demo
+docker compose exec api python -m app.scripts.reembed_leads   # only with an OpenAI key
 docker compose start worker
 ```
+
+The `reembed_leads` step gives the sample leads real OpenAI embeddings, so similar-lead search
+works on new messages too.
 
 Open **http://localhost:8088** and sign in:
 
@@ -132,18 +165,22 @@ To stop: `docker compose down`. To start over: `docker compose down -v` and repe
 4. **Reply, or add an internal note.** A reply goes out on the lead's own channel, in the
    same thread. WhatsApp only allows free-form replies within 24 hours of the customer's
    last message, and the screen says when that window has closed.
-5. **Watch the bell** in the top bar. Alerts arrive live and also pop up as toasts.
-6. **Open Reports:** volume by source, category mix, conversion funnel, time to first
+5. **Open Try a lead** and pick an example, or paste your own message in any language.
+   In a few seconds you see the category, the score with each factor, the AI's
+   reasoning, the reply it would send, who would be alerted, and similar past leads.
+   Nothing is saved.
+6. **Watch the bell** in the top bar. Alerts arrive live and also pop up as toasts.
+7. **Open Reports:** volume by source, category mix, conversion funnel, time to first
    response and high-value leads. Each figure is defined in
    [docs/REPORTING.md](docs/REPORTING.md).
-7. **Open Settings** (admins only):
+8. **Open Settings** (admins only):
    - **Scoring:** move a weight and the latest 20 leads are rescored on the spot.
    - **Keywords**, **Auto-reply** templates (English and Arabic), **Alerts**, **Mailboxes**
      and **Users**.
    - **Integrations:** connect WhatsApp, Slack, Teams and Microsoft sign-in. Each has a
      **Test** button and shows the exact URLs to paste into Meta or Microsoft. Secrets are
      encrypted and never shown again.
-8. **Sign in as a sales rep** in a private window. Reps work every lead and can claim
+9. **Sign in as a sales rep** in a private window. Reps work every lead and can claim
    unassigned ones. Only admins can reassign leads or open Settings.
 
 ---
@@ -261,7 +298,8 @@ restoring a backup, is in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 | Architecture and data model | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | Classification and scoring | [docs/SCORING.md](docs/SCORING.md) |
 | Email and WhatsApp intake, Meta and mailbox setup | [docs/INGESTION.md](docs/INGESTION.md) |
-| AI pipeline and classifier evaluation | [docs/AI_PIPELINE.md](docs/AI_PIPELINE.md) |
+| AI pipeline, Try a lead, and how the classifier is evaluated | [docs/AI_PIPELINE.md](docs/AI_PIPELINE.md) |
+| Classifier evaluation results | [docs/CLASSIFIER_EVAL.md](docs/CLASSIFIER_EVAL.md) |
 | Automatic replies | [docs/AUTO_REPLY.md](docs/AUTO_REPLY.md) |
 | Notifications and escalation | [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md) |
 | Dashboard screens and permissions | [docs/DASHBOARD.md](docs/DASHBOARD.md) |

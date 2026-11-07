@@ -150,7 +150,7 @@ class LeadPipeline:
                 sender_name=contact.name,
                 sender_address=inbound[-1].sender_address,
                 company_domain=contact.company_domain,
-                messages=tuple(_conversation_message(m) for m in inbound),
+                messages=tuple(conversation_message(m) for m in inbound),
             ),
             inbound_count=len(inbound),
             replied_to_us=_replied_to_us(messages),
@@ -325,7 +325,7 @@ class LeadPipeline:
         return Outcome.FAILED
 
 
-def _conversation_message(message: Message) -> ConversationMessage:
+def conversation_message(message: Message) -> ConversationMessage:
     text = message.body_text or f"[{message.kind} message without text]"
     return ConversationMessage(sent_at=message.occurred_at, subject=message.subject, text=text)
 

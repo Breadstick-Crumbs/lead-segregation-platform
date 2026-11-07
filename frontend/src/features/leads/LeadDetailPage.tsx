@@ -32,15 +32,14 @@ import { cn } from '../../lib/cn'
 import {
   CATEGORY_LABELS,
   LEAD_STATUSES,
-  PRIORITY_LABELS,
   STATUS_LABELS,
   clockTime,
   dateTime,
-  priorityText,
   timeAgo,
 } from '../../lib/format'
 import { useSession } from '../auth/useSession'
-import { CategoryChip, SourceChip, StatusChip } from './LeadBits'
+import { SourceChip, StatusChip } from './LeadBits'
+import { ScoreCard } from './ScoreCard'
 
 function displayName(lead: LeadDetail): string {
   const c = lead.contact
@@ -137,7 +136,7 @@ function LeadView({ lead }: { lead: LeadDetail }) {
           <Composer lead={lead} />
         </div>
         <aside className="flex flex-col gap-6" aria-label="Score and actions">
-          <ScoreCard lead={lead} />
+          <LeadScoreCard lead={lead} />
           <Controls key={`${lead.status}-${lead.owner?.id ?? ''}`} lead={lead} />
           <SimilarLeads leadId={lead.id} />
         </aside>
@@ -296,109 +295,18 @@ function Composer({ lead }: { lead: LeadDetail }) {
   )
 }
 
-const FACTORS: { key: string; label: string }[] = [
-  { key: 'intent', label: 'Intent' },
-  { key: 'urgency', label: 'Urgency' },
-  { key: 'business_value', label: 'Business value' },
-  { key: 'keywords', label: 'Keywords' },
-  { key: 'company', label: 'Company' },
-  { key: 'history', label: 'History' },
-]
-
-function ScoreCard({ lead }: { lead: LeadDetail }) {
-  const breakdown = (lead.latest_score?.breakdown ?? {}) as Record<
-    string,
-    { value?: number; weight?: number; matched?: string[] } | undefined
-  >
-  const cap = (breakdown.cap as unknown as { reason: string; max: number } | null) ?? null
+function LeadScoreCard({ lead }: { lead: LeadDetail }) {
   return (
-    <div className="relative">
-      <div aria-hidden className="absolute inset-0 rotate-2 rounded-plate bg-plate" />
-      <section
-        className="relative flex flex-col gap-5 rounded-card border border-border bg-surface p-6"
-        aria-labelledby="score-title"
-      >
-        <div>
-          <Eyebrow>
-            <span id="score-title">Lead score</span>
-          </Eyebrow>
-          {lead.score == null ? (
-            <p className="mt-2 text-body">
-              Scoring… this takes a few seconds after a message arrives.
-            </p>
-          ) : (
-            <p className="mt-1 flex items-baseline gap-2">
-              <span className="text-7xl leading-none font-bold tracking-[-0.03em] tabular-nums text-ink">
-                {lead.score}
-              </span>
-              <span className="text-muted">/100</span>
-              {lead.priority ? (
-                <span className={cn('ml-auto text-lg font-bold', priorityText(lead.priority))}>
-                  {PRIORITY_LABELS[lead.priority]}
-                </span>
-              ) : null}
-            </p>
-          )}
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <CategoryChip category={lead.category} />
-            {lead.language ? (
-              <Chip>{lead.language === 'ar' ? 'Arabic' : lead.language.toUpperCase()}</Chip>
-            ) : null}
-          </div>
-        </div>
-        {lead.latest_score ? (
-          <>
-            <ul className="flex flex-col gap-2.5" aria-label="Score factors">
-              {FACTORS.map(({ key, label }) => {
-                const factor = breakdown[key]
-                const value = factor?.value ?? 0
-                return (
-                  <li key={key}>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-body">
-                        {label}
-                        <span className="ml-1 font-mono text-xs text-muted">
-                          ×{factor?.weight ?? 0}
-                        </span>
-                      </span>
-                      <span className="font-mono font-semibold text-ink tabular-nums">{value}</span>
-                    </div>
-                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-plate" aria-hidden>
-                      <div
-                        className="h-full rounded-full bg-accent"
-                        style={{ width: `${value}%` }}
-                      />
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-            {breakdown.keywords?.matched?.length ? (
-              <p className="text-sm text-muted">
-                Matched:{' '}
-                <span dir="auto" className="text-body">
-                  {breakdown.keywords.matched.join(', ')}
-                </span>
-              </p>
-            ) : null}
-            {cap ? (
-              <p className="text-sm text-muted">
-                Capped at {cap.max} (
-                {cap.reason === 'spam' ? 'spam' : 'support requests stay out of sales priority'}).
-              </p>
-            ) : null}
-            {lead.latest_score.rationale ? (
-              <blockquote className="border-l-2 border-accent pl-3 text-body italic">
-                “{lead.latest_score.rationale}”
-              </blockquote>
-            ) : null}
-            <p className="font-mono text-[11px] text-muted">
-              {lead.latest_score.model} · prompt {lead.latest_score.prompt_version}
-            </p>
-          </>
-        ) : null}
-      </section>
-    </div>
+    <ScoreCard
+      score={lead.score}
+      priority={lead.priority}
+      category={lead.category}
+      language={lead.language}
+      breakdown={lead.latest_score?.breakdown ?? null}
+      rationale={lead.latest_score?.rationale ?? null}
+      model={lead.latest_score?.model ?? null}
+      promptVersion={lead.latest_score?.prompt_version ?? null}
+    />
   )
 }
 

@@ -10,6 +10,7 @@ The web app sales reps and admins work in. The visual direction is in `docs/DESI
 | **Leads** (home) | Stats for the last 24 hours and 30 days, then "Needs you now". For a rep, that's their open high and critical leads; for an admin, it's the team's. Then the full table. Filters, search, sort and page are in the URL, so a view can be shared. Below 768 px the table becomes cards. |
 | **Lead detail** | The conversation (auto-replies labelled, delivery status shown) and a reply or internal-note composer. The score card shows the factor breakdown, matched keywords, cap and the AI rationale. Status and owner controls, similar past leads (pgvector), a duplicate notice and the full history. |
 | **Notifications** | A bell with the unread count, a panel listing alerts, and a toast for each new one, all live over SSE. A "Live" dot shows when the stream is connected. |
+| **Try a lead** | Paste any email or WhatsApp message, or start from an example, and see what the pipeline would do: category and confidence, the score with each factor, the AI's reasoning, the automatic reply it would get, who would be alerted, and similar past leads. Nothing is stored or sent (`docs/AI_PIPELINE.md`). |
 | **AI apps** | The MCP server URL to add to Claude or ChatGPT, what the tools can do, and the user's connected apps with "last used" and Disconnect (`docs/MCP.md`). |
 | **Connect an AI app** | The consent page an AI app sends the browser to: who is signed in, what the app will be able to do, and where it returns to. Allow or Cancel. Outside the nav shell, like Sign in. |
 | **Settings** (admin) | Scoring weights and thresholds, with a live preview of the last 20 leads rescored. Also keywords, auto-reply templates per language, escalation emails, mailboxes, users, and integrations. WhatsApp, Slack, Teams and Microsoft sign-in are set up right there: each has a form, a **Test** button, and the URLs to paste into Meta or Entra. Values saved there override `.env`, and removing one falls back to it. Secrets are encrypted with `SECRETS_ENCRYPTION_KEY` and never shown again. A change applies everywhere within about 15 seconds, without a restart. OpenAI and the encryption key stay server settings. |
@@ -53,6 +54,7 @@ docker compose stop worker          # it would race the seed for the leads' jobs
 cd backend
 uv run python -m app.scripts.seed
 uv run python -m app.scripts.seed_demo        # --reset to start over
+uv run python -m app.scripts.reembed_leads    # optional, needs OPENAI_API_KEY (see below)
 docker compose start worker
 ```
 
@@ -60,4 +62,9 @@ docker compose start worker
 category) through the real ingestion, scoring, assignment and alerting code. Only the
 OpenAI calls are replaced, by a scripted analysis and topic-based embeddings. Leads are
 then spread over two weeks and moved along: contacted, qualified, converted, lost. It
-refuses to run in production.
+refuses to run in production unless given `--allow-production`, which is meant for a demo
+deployment.
+
+The topic vectors can't be compared with real OpenAI embeddings. So until the demo leads
+are re-embedded, a real lead (or a message in **Try a lead**) finds no similar demo leads.
+`reembed_leads` replaces them with real embeddings, at one embedding call per lead.

@@ -815,6 +815,53 @@
         }
       }
     },
+    "/api/v1/leads/preview": {
+      "post": {
+        "tags": [
+          "leads"
+        ],
+        "summary": "Preview Lead",
+        "description": "Run a message through the AI pipeline without storing or sending anything: its\ncategory, score, the auto-reply it would get and the alert it would raise.",
+        "operationId": "preview_lead",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeadPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeadPreviewRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/leads/stats": {
       "get": {
         "tags": [
@@ -3313,6 +3360,176 @@
           "page_size"
         ],
         "title": "LeadPage"
+      },
+      "LeadPreviewRead": {
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/LeadCategory"
+          },
+          "category_confidence": {
+            "type": "number",
+            "title": "Category Confidence"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          },
+          "company_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          },
+          "job_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Title"
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/Priority"
+          },
+          "breakdown": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Breakdown",
+            "description": "The same shape as a stored score's breakdown"
+          },
+          "auto_reply": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Reply",
+            "description": "The reply that would be sent, if any"
+          },
+          "alert": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NotificationKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The alert that would be raised, if any"
+          },
+          "similar": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarLeadRead"
+            },
+            "type": "array",
+            "title": "Similar"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "prompt_version": {
+            "type": "string",
+            "title": "Prompt Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "category_confidence",
+          "language",
+          "summary",
+          "rationale",
+          "company_name",
+          "job_title",
+          "score",
+          "priority",
+          "breakdown",
+          "auto_reply",
+          "alert",
+          "similar",
+          "model",
+          "prompt_version"
+        ],
+        "title": "LeadPreviewRead",
+        "description": "What the pipeline would do with the message. Nothing was stored or sent."
+      },
+      "LeadPreviewRequest": {
+        "properties": {
+          "channel": {
+            "$ref": "#/components/schemas/Channel"
+          },
+          "sender_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sender Name"
+          },
+          "sender_address": {
+            "type": "string",
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Sender Address",
+            "description": "An email address, or a phone number for WhatsApp"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "channel",
+          "sender_address",
+          "text"
+        ],
+        "title": "LeadPreviewRequest",
+        "description": "A message to run through the pipeline without storing it (\"Try a lead\")."
       },
       "LeadRef": {
         "properties": {

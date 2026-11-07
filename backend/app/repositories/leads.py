@@ -175,16 +175,22 @@ class LeadRepository:
         return int(row[0]), int(row[1])
 
     async def similar(
-        self, embedding: list[float], *, exclude: uuid.UUID, limit: int, min_similarity: float
+        self,
+        embedding: list[float],
+        *,
+        exclude: uuid.UUID | None,
+        limit: int,
+        min_similarity: float,
     ) -> list[SimilarLead]:
-        """Nearest leads by cosine distance (HNSW index), most similar first."""
+        """Nearest leads by cosine distance (HNSW index), most similar first. `exclude` is the
+        lead itself; None when the text isn't a stored lead (the "Try a lead" preview)."""
         distance = Lead.embedding.cosine_distance(embedding)
-        rows = await self._session.execute(
-            select(Lead.id, Lead.contact_id, Lead.status, Lead.created_at, distance.label("d"))
-            .where(Lead.embedding.is_not(None), Lead.id != exclude)
-            .order_by(distance)
-            .limit(limit)
-        )
+        query = select(
+            Lead.id, Lead.contact_id, Lead.status, Lead.created_at, distance.label("d")
+        ).where(Lead.embedding.is_not(None))
+        if exclude is not None:
+            query = query.where(Lead.id != exclude)
+        rows = await self._session.execute(query.order_by(distance).limit(limit))
         return [
             SimilarLead(row.id, row.contact_id, row.status, row.created_at, 1 - float(row.d))
             for row in rows

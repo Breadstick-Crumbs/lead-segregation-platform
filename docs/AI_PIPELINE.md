@@ -39,16 +39,30 @@ SDK retry, so a run is bounded well under the sweep's 10-minute grace period.
 
 ## Evaluating the classifier
 
-`backend/tests/fixtures/leads/cases.json` holds labelled leads: every category, English
-and Arabic, email and WhatsApp, and a prompt-injection attempt. With `OPENAI_API_KEY` set:
+`backend/tests/fixtures/leads/cases.json` holds 53 labelled leads: every category,
+English and Arabic, email and WhatsApp, and two prompt-injection attempts. With
+`OPENAI_API_KEY` set, run in `backend/`:
 
 ```bash
-uv run pytest -m live_llm -s
+uv run python -m tests.live.evaluation   # writes docs/CLASSIFIER_EVAL.md
+uv run pytest -m live_llm -s             # the same run as a pass/fail check
 ```
 
-It prints each case and fails below 85 % category accuracy, when a score leaves its
-expected range, when the language is wrong, or if the injection case is not spam. Run it
-after any prompt or model change and bump `PROMPT_VERSION`.
+The report has accuracy overall and per language, per-category precision and recall, a
+confusion matrix, language detection, scores against their expected bands, spam and
+injection results, the time per lead, and every miss with the model's reasoning. The
+latest results are in [CLASSIFIER_EVAL.md](CLASSIFIER_EVAL.md): 98% category accuracy
+(52/53). The pytest check fails below 85% accuracy or 85% of scores in band, or if an
+injection works. Run both after any prompt or model change and bump `PROMPT_VERSION`.
+
+## Trying a message (dry run)
+
+**Try a lead** in the dashboard (`POST /api/v1/leads/preview`) runs a typed message
+through the same code: the classifier, embedding, similar-lead search, scoring,
+auto-reply template and alert rules. It stores, sends and assigns nothing. It is the one
+place OpenAI is called inside a request, because a person is waiting for the answer. It
+is limited to signed-in users and 10 runs a minute per address, and the OpenAI calls
+finish before any database work starts (`app/services/lead_preview.py`).
 
 ## Configuration
 

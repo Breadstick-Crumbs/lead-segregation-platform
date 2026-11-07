@@ -10,6 +10,7 @@ import { REPORT_PERIODS, type ReportPeriod } from './features/reports/format'
 import { ReportsPage } from './features/reports/ReportsPage'
 import { parseLeadSearch } from './features/leads/search'
 import { SettingsPage } from './features/settings/SettingsPage'
+import { TryLeadPage } from './features/try/TryLeadPage'
 import { SETTINGS_TABS, type SettingsTab } from './features/settings/tabs'
 import { AppShell } from './features/shell/AppShell'
 
@@ -67,6 +68,12 @@ const reportsRoute = createRoute({
   },
 })
 
+const tryRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/try',
+  component: TryLeadPage,
+})
+
 const connectRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/ai-apps',
@@ -86,7 +93,14 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   callbackRoute,
   consentRoute,
-  appRoute.addChildren([leadsRoute, leadRoute, reportsRoute, connectRoute, settingsRoute]),
+  appRoute.addChildren([
+    leadsRoute,
+    leadRoute,
+    reportsRoute,
+    tryRoute,
+    connectRoute,
+    settingsRoute,
+  ]),
 ])
 
 export const router = createRouter({ routeTree, defaultPreload: 'intent', scrollRestoration: true })

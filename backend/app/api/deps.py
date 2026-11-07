@@ -12,6 +12,12 @@ from app.core.rate_limit import RateLimiter
 from app.core.security import AccessTokenClaims, decode_access_token
 from app.db.session import SessionFactory, get_session
 from app.integrations.microsoft_entra import EntraClient
+from app.integrations.openai_llm import (
+    Embedder,
+    LeadAnalyzer,
+    OpenAIEmbedder,
+    OpenAILeadAnalyzer,
+)
 from app.models import User
 from app.models.enums import Role
 from app.repositories.users import UserRepository
@@ -114,3 +120,16 @@ def get_entra_client(settings: SettingsDep) -> EntraClient:
 
 
 EntraClientDep = Annotated[EntraClient, Depends(get_entra_client)]
+
+
+LeadAI = tuple[LeadAnalyzer | None, Embedder | None]
+
+
+def get_lead_ai(settings: SettingsDep) -> LeadAI:
+    """The classifier and embedder, or Nones when OpenAI isn't configured. Tests override it."""
+    if settings.openai_api_key is None:
+        return None, None
+    return OpenAILeadAnalyzer(settings), OpenAIEmbedder(settings)
+
+
+LeadAIDep = Annotated[LeadAI, Depends(get_lead_ai)]

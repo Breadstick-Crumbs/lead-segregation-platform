@@ -49,6 +49,9 @@ RULES = (
     _rule("oauth_revoke", "POST", "/revoke", 30, MINUTE),
     # Guessing the verify token. Meta calls this once, when the webhook is subscribed.
     _rule("whatsapp_verify", "GET", "/api/v1/webhooks/whatsapp", 10, MINUTE),
+    # "Try a lead" calls OpenAI inside the request (and costs money): signed-in users only,
+    # and few per address.
+    _rule("lead_preview", "POST", "/api/v1/leads/preview", 10, MINUTE),
     # A flood ceiling only: Meta delivers from a small pool of addresses, and a 429 makes it
     # retry with backoff rather than drop the event.
     _rule("whatsapp_webhook", "POST", "/api/v1/webhooks/whatsapp", 600, MINUTE),

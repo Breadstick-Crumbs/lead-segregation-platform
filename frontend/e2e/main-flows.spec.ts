@@ -79,3 +79,13 @@ test('reports show every section', async ({ page }) => {
   }
   await expect(page.getByRole('region', { name: 'Summary' })).toBeVisible()
 })
+
+test('try a lead explains when OpenAI is not configured', async ({ page }) => {
+  // The E2E stack runs without an OpenAI key, so this exercises the page and the error path.
+  await signIn(page, '/try')
+  await page.getByRole('button', { name: 'Sales email' }).click()
+  await expect(page.getByLabel('Email address')).toHaveValue('omar.haddad@gulfbuild.ae')
+  await page.getByRole('button', { name: 'Run the pipeline' }).click()
+
+  await expect(page.getByText('OpenAI is not configured on this server')).toBeVisible()
+})
