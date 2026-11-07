@@ -26,7 +26,12 @@ class Settings(BaseSettings):
     jwt_secret: SecretStr = SecretStr(DEV_JWT_SECRET)
     jwt_access_ttl_minutes: int = 15
     jwt_refresh_ttl_days: int = 14
-    secrets_encryption_key: SecretStr | None = None  # Fernet key for mailbox credentials
+    # MCP clients (Claude, ChatGPT) connect with OAuth tokens issued by this app.
+    mcp_access_ttl_minutes: int = 60
+    mcp_refresh_ttl_days: int = 30
+    secrets_encryption_key: SecretStr | None = (
+        None  # Fernet key for mailbox passwords and MCP client secrets
+    )
     # Secure flag on the refresh cookie; defaults to on in production. Set it explicitly for
     # an HTTPS deployment that isn't ENVIRONMENT=production.
     cookie_secure: bool | None = None

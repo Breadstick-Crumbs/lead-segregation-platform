@@ -15,6 +15,7 @@ shows everything on a dashboard with reporting.
 - Notifications, escalation, SLA and the live stream: [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md)
 - Dashboard screens, permissions and demo data: [docs/DASHBOARD.md](docs/DASHBOARD.md)
 - Reporting: what each figure means: [docs/REPORTING.md](docs/REPORTING.md)
+- MCP server: working leads from Claude or ChatGPT, OAuth sign-in: [docs/MCP.md](docs/MCP.md)
 
 ## Quick start
 

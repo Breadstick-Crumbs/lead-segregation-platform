@@ -1,7 +1,8 @@
-import { Navigate, useNavigate, useSearch } from '@tanstack/react-router'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 
 import { PageHeader } from '../../components/ui'
 import { cn } from '../../lib/cn'
+import { Redirect } from '../auth/Redirect'
 import { useSession } from '../auth/useSession'
 import { AlertSettings } from './AlertSettings'
 import { IntegrationsPanel } from './IntegrationsPanel'
@@ -16,7 +17,7 @@ export function SettingsPage() {
   const { isAdmin } = useSession()
   const { tab = 'scoring' } = useSearch({ from: '/app/settings' })
   const navigate = useNavigate({ from: '/settings' })
-  if (!isAdmin) return <Navigate to="/" replace />
+  if (!isAdmin) return <Redirect to="home" />
 
   return (
     <div className="flex flex-col gap-8">

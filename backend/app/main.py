@@ -2,7 +2,7 @@
 
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
 import sentry_sdk
 import structlog
@@ -10,12 +10,15 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 from sqlalchemy.engine import make_url
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.error_handlers import register_error_handlers
 from app.api.v1.router import api_router
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
+from app.db.session import get_session
 from app.integrations.pg_listener import NotificationHub
+from app.mcp_server.server import build_mcp_app
 from app.repositories.notifications import NOTIFY_CHANNEL
 
 
@@ -33,11 +36,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     conninfo = make_url(str(settings.database_url)).set(drivername="postgresql")
     hub = NotificationHub(conninfo.render_as_string(hide_password=False), NOTIFY_CHANNEL)
 
+    # The MCP app isn't FastAPI, so it can't take dependencies; these resolve through the
+    # app's dependency overrides so tests swap the session and settings for MCP too.
+    def mcp_session() -> AbstractAsyncContextManager[AsyncSession]:
+        return asynccontextmanager(app.dependency_overrides.get(get_session, get_session))()
+
+    def mcp_settings() -> Settings:
+        override: Callable[[], Settings] = app.dependency_overrides.get(get_settings, get_settings)
+        return override()
+
+    mcp_app, mcp_sessions = build_mcp_app(settings, mcp_session, mcp_settings)
+
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await hub.start()  # one LISTEN connection per process, for notification streams
         try:
-            yield
+            async with mcp_sessions.run():
+                yield
         finally:
             await hub.stop()
 
@@ -68,8 +83,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return response
 
     app.state.notification_hub = hub
+    app.state.mcp_sessions = mcp_sessions  # tests run it without the full lifespan
     register_error_handlers(app)
     app.include_router(api_router)
+    # Last, so the API's routes match first: /mcp and the OAuth endpoints (see PUBLIC_PATHS).
+    app.mount("/", mcp_app)
     return app
 
 

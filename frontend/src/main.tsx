@@ -3,11 +3,13 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { Providers } from './app/providers'
+import { applyInitialTheme } from './features/shell/theme'
 import './index.css'
 import { router } from './router'
 
 const root = document.getElementById('root')
 if (!root) throw new Error('Root element #root not found')
+applyInitialTheme()
 
 createRoot(root).render(
   <StrictMode>

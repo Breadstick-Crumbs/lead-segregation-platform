@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react'
 import { getMicrosoftLoginUrl, useAuthProviders } from '../../api/generated'
 import { Button, Eyebrow, TextField } from '../../components/ui'
 import { ApiError } from '../../lib/api-client'
-import { safeRedirect } from '../../lib/redirect'
+import { rememberRedirect, safeRedirect } from '../../lib/redirect'
 import { useSession } from './useSession'
 
 const SSO_ERRORS: Record<string, string> = {
@@ -110,6 +110,7 @@ export function LoginPage() {
                 </div>
                 <a
                   href={getMicrosoftLoginUrl()}
+                  onClick={() => rememberRedirect(search.redirect)}
                   className="inline-flex min-h-11 items-center justify-center gap-3 rounded-control border border-border bg-surface px-4 font-semibold text-ink transition-colors duration-150 hover:bg-plate"
                 >
                   <MicrosoftMark />

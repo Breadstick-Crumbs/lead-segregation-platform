@@ -6,10 +6,12 @@ The web app sales reps and admins work in. The visual direction is in `docs/DESI
 
 | Screen | What it shows |
 |--------|---------------|
-| **Sign in** | Password, plus "Sign in with Microsoft" when Entra is configured. Problems from the Microsoft flow (`?sso_error=`) are explained in plain words. |
+| **Sign in** | Password, plus "Sign in with Microsoft" when Entra is configured. Problems from the Microsoft flow (`?sso_error=`) are explained in plain words. Either way you land back where you were headed, such as an AI app's consent page. |
 | **Leads** (home) | Stats for the last 24 hours and 30 days, then "Needs you now". For a rep, that's their open high and critical leads; for an admin, it's the team's. Then the full table. Filters, search, sort and page are in the URL, so a view can be shared. Below 768 px the table becomes cards. |
 | **Lead detail** | The conversation (auto-replies labelled, delivery status shown) and a reply or internal-note composer. The score card shows the factor breakdown, matched keywords, cap and the AI rationale. Status and owner controls, similar past leads (pgvector), a duplicate notice and the full history. |
 | **Notifications** | A bell with the unread count, a panel listing alerts, and a toast for each new one, all live over SSE. A "Live" dot shows when the stream is connected. |
+| **AI apps** | The MCP server URL to add to Claude or ChatGPT, what the tools can do, and the user's connected apps with "last used" and Disconnect (`docs/MCP.md`). |
+| **Connect an AI app** | The consent page an AI app sends the browser to: who is signed in, what the app will be able to do, and where it returns to. Allow or Cancel. Outside the nav shell, like Sign in. |
 | **Settings** (admin) | Scoring weights and thresholds, with a live preview of the last 20 leads rescored. Also keywords, auto-reply templates per language, escalation emails, mailboxes, users and integration status. |
 
 Light and dark themes are both supported. Arabic content keeps its direction (`dir="auto"`) and uses IBM Plex Sans Arabic.

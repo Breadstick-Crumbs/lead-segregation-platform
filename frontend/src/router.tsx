@@ -2,6 +2,8 @@ import { Outlet, createRootRoute, createRoute, createRouter } from '@tanstack/re
 
 import { AuthCallbackPage } from './features/auth/AuthCallbackPage'
 import { LoginPage } from './features/auth/LoginPage'
+import { ConnectPage } from './features/connect/ConnectPage'
+import { ConsentPage } from './features/connect/ConsentPage'
 import { LeadDetailPage } from './features/leads/LeadDetailPage'
 import { LeadsPage } from './features/leads/LeadsPage'
 import { REPORT_PERIODS, type ReportPeriod } from './features/reports/format'
@@ -27,6 +29,16 @@ const callbackRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/auth/callback',
   component: AuthCallbackPage,
+})
+
+// An MCP client's sign-in lands here; it handles its own sign-in redirect, without the shell.
+const consentRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/oauth/consent',
+  component: ConsentPage,
+  validateSearch: (raw: Record<string, unknown>): { request?: string } => ({
+    request: typeof raw.request === 'string' ? raw.request : undefined,
+  }),
 })
 
 // Everything behind sign-in shares the nav shell.
@@ -55,6 +67,12 @@ const reportsRoute = createRoute({
   },
 })
 
+const connectRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/ai-apps',
+  component: ConnectPage,
+})
+
 const settingsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/settings',
@@ -67,7 +85,8 @@ const settingsRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   loginRoute,
   callbackRoute,
-  appRoute.addChildren([leadsRoute, leadRoute, reportsRoute, settingsRoute]),
+  consentRoute,
+  appRoute.addChildren([leadsRoute, leadRoute, reportsRoute, connectRoute, settingsRoute]),
 ])
 
 export const router = createRouter({ routeTree, defaultPreload: 'intent', scrollRestoration: true })

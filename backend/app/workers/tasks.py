@@ -30,6 +30,7 @@ from app.services.lead_pipeline import LeadPipeline
 from app.services.lead_queue import sweep_pending_leads
 from app.services.mailboxes import MailboxService, enqueue_poll
 from app.services.notifications import NotificationService
+from app.services.oauth import OAuthService
 from app.services.whatsapp_inbox import VoiceNotes, WhatsAppInbox
 from app.workers import names
 from app.workers.app import app
@@ -271,4 +272,9 @@ async def prune_history(timestamp: int) -> None:
             )
         )
         await session.commit()
-    logger.info("history_pruned", webhooks=result.rowcount)  # type: ignore[attr-defined]
+        oauth = await OAuthService(session, get_settings()).prune()
+    logger.info(
+        "history_pruned",
+        webhooks=result.rowcount,  # type: ignore[attr-defined]
+        **{f"oauth_{name}": count for name, count in oauth.items()},
+    )

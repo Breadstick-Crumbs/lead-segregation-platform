@@ -2,6 +2,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef } from 'react'
 
 import { Eyebrow } from '../../components/ui'
+import { takeRememberedRedirect } from '../../lib/redirect'
 import { useSession } from './useSession'
 
 /** Where Microsoft sign-in lands: the backend has set the refresh cookie; exchange it. */
@@ -13,9 +14,12 @@ export function AuthCallbackPage() {
   useEffect(() => {
     if (started.current) return // StrictMode runs effects twice; refresh tokens are single-use
     started.current = true
-    void completeExternalSignIn().then((ok) =>
-      navigate({ to: ok ? '/' : '/login', search: ok ? undefined : { sso_error: 'failed' } }),
-    )
+    void completeExternalSignIn().then((ok) => {
+      const next = takeRememberedRedirect()
+      return ok
+        ? navigate({ to: next })
+        : navigate({ to: '/login', search: { sso_error: 'failed', redirect: next } })
+    })
   }, [completeExternalSignIn, navigate])
 
   return (

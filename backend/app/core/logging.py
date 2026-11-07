@@ -36,6 +36,20 @@ def configure_logging(level: str, *, json_logs: bool) -> None:
         cache_logger_on_first_use=True,
     )
 
+    # Libraries log through the standard library: send their warnings and errors through the
+    # same renderer, so production stays JSON. Having a root handler also turns the MCP SDK's
+    # `logging.basicConfig()` (which would install a Rich console handler) into a no-op.
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(
+        structlog.stdlib.ProcessorFormatter(
+            foreign_pre_chain=shared_processors,
+            processors=[structlog.stdlib.ProcessorFormatter.remove_processors_meta, renderer],
+        )
+    )
+    root = logging.getLogger()
+    root.handlers = [handler]
+    root.setLevel(logging.WARNING)
+
 
 def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
     logger: structlog.stdlib.BoundLogger = structlog.get_logger(name)

@@ -5,6 +5,13 @@ from app.models.lead import Lead, LeadEvent, LeadScore
 from app.models.mailbox import Mailbox
 from app.models.message import Message
 from app.models.notification import Notification
+from app.models.oauth import (
+    OAuthAuthorizationCode,
+    OAuthAuthorizationRequest,
+    OAuthClient,
+    OAuthGrant,
+    OAuthToken,
+)
 from app.models.setting import AppSetting
 from app.models.user import RefreshToken, User
 from app.models.webhook import InboundWebhook
@@ -19,6 +26,11 @@ __all__ = [
     "Mailbox",
     "Message",
     "Notification",
+    "OAuthAuthorizationCode",
+    "OAuthAuthorizationRequest",
+    "OAuthClient",
+    "OAuthGrant",
+    "OAuthToken",
     "RefreshToken",
     "User",
 ]

@@ -18,6 +18,12 @@ function preferred(): Theme {
   )
 }
 
+/** Before the first render, so pages outside the app shell (sign-in, an AI app's consent
+ * page) match the user's theme too, without a light flash. */
+export function applyInitialTheme(): void {
+  document.documentElement.classList.toggle('dark', preferred() === 'dark')
+}
+
 export function useTheme(): [Theme, () => void] {
   const [theme, setTheme] = useState<Theme>(preferred)
 

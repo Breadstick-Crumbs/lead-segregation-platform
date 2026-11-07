@@ -16,7 +16,8 @@ class SecretBox:
         key = settings.secrets_encryption_key
         if key is None:
             raise SecretsNotConfiguredError(
-                "SECRETS_ENCRYPTION_KEY must be set to store mailbox credentials"
+                "SECRETS_ENCRYPTION_KEY must be set to store credentials "
+                "(mailbox passwords, MCP client secrets)"
             )
         self._fernet = Fernet(key.get_secret_value().encode())
 

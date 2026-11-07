@@ -54,6 +54,28 @@ export const Channel = {
   whatsapp: 'whatsapp',
 } as const;
 
+export interface ConnectedAppRead {
+  id: string;
+  client_name: string;
+  redirect_host: string;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+export interface ConsentDecision {
+  redirect_url: string;
+}
+
+/**
+ * What the consent page shows before the user approves an MCP client.
+ */
+export interface ConsentRequestRead {
+  id: string;
+  client_name: string;
+  redirect_host: string;
+  expires_at: string;
+}
+
 export interface ContactRead {
   id: string;
   name: string | null;
@@ -3626,6 +3648,432 @@ export function useStreamNotifications<TData = Awaited<ReturnType<typeof streamN
 
 
 
+
+export const getGetConsentRequestUrl = (requestId: string,) => {
+
+
+
+
+  return `/api/v1/oauth/requests/${requestId}`
+}
+
+/**
+ * @summary Get Consent Request
+ */
+export const getConsentRequest = async (requestId: string, options?: Parameters<typeof apiFetch>[1]): Promise<ConsentRequestRead> => {
+
+  return apiFetch<ConsentRequestRead>(getGetConsentRequestUrl(requestId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetConsentRequestQueryKey = (requestId: string,) => {
+    return [
+    `/api/v1/oauth/requests/${requestId}`
+    ] as const;
+    }
+
+
+export const getGetConsentRequestQueryOptions = <TData = Awaited<ReturnType<typeof getConsentRequest>>, TError = HTTPValidationError>(requestId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getConsentRequest>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetConsentRequestQueryKey(requestId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getConsentRequest>>> = ({ signal }) => getConsentRequest(requestId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: requestId !== null && requestId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getConsentRequest>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetConsentRequestQueryResult = NonNullable<Awaited<ReturnType<typeof getConsentRequest>>>
+export type GetConsentRequestQueryError = HTTPValidationError
+
+
+export function useGetConsentRequest<TData = Awaited<ReturnType<typeof getConsentRequest>>, TError = HTTPValidationError>(
+ requestId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getConsentRequest>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getConsentRequest>>,
+          TError,
+          Awaited<ReturnType<typeof getConsentRequest>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetConsentRequest<TData = Awaited<ReturnType<typeof getConsentRequest>>, TError = HTTPValidationError>(
+ requestId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getConsentRequest>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getConsentRequest>>,
+          TError,
+          Awaited<ReturnType<typeof getConsentRequest>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetConsentRequest<TData = Awaited<ReturnType<typeof getConsentRequest>>, TError = HTTPValidationError>(
+ requestId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getConsentRequest>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Consent Request
+ */
+
+export function useGetConsentRequest<TData = Awaited<ReturnType<typeof getConsentRequest>>, TError = HTTPValidationError>(
+ requestId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getConsentRequest>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetConsentRequestQueryOptions(requestId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getApproveConsentRequestUrl = (requestId: string,) => {
+
+
+
+
+  return `/api/v1/oauth/requests/${requestId}/approve`
+}
+
+/**
+ * Let the app act as the signed-in user. Send the browser to `redirect_url`.
+ * @summary Approve Consent Request
+ */
+export const approveConsentRequest = async (requestId: string, options?: Parameters<typeof apiFetch>[1]): Promise<ConsentDecision> => {
+
+  return apiFetch<ConsentDecision>(getApproveConsentRequestUrl(requestId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApproveConsentRequestMutationKey = () => ['approveConsentRequest'] as const;
+
+export const getApproveConsentRequestMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveConsentRequest>>, TError,ApproveConsentRequestMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveConsentRequest>>, TError,ApproveConsentRequestMutationVariables, TContext> => {
+
+const mutationKey = getApproveConsentRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveConsentRequest>>, ApproveConsentRequestMutationVariables> = (props) => {
+          const {requestId} = props ?? {};
+
+          return  approveConsentRequest(requestId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveConsentRequestMutationResult = NonNullable<Awaited<ReturnType<typeof approveConsentRequest>>>
+
+    export type ApproveConsentRequestMutationError = HTTPValidationError
+    export type ApproveConsentRequestMutationVariables = {requestId: string}
+
+    /**
+ * @summary Approve Consent Request
+ */
+export const useApproveConsentRequest = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveConsentRequest>>, TError,ApproveConsentRequestMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof approveConsentRequest>>,
+        TError,
+        ApproveConsentRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveConsentRequestMutationOptions(options), queryClient);
+    }
+
+export const getDenyConsentRequestUrl = (requestId: string,) => {
+
+
+
+
+  return `/api/v1/oauth/requests/${requestId}/deny`
+}
+
+/**
+ * @summary Deny Consent Request
+ */
+export const denyConsentRequest = async (requestId: string, options?: Parameters<typeof apiFetch>[1]): Promise<ConsentDecision> => {
+
+  return apiFetch<ConsentDecision>(getDenyConsentRequestUrl(requestId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDenyConsentRequestMutationKey = () => ['denyConsentRequest'] as const;
+
+export const getDenyConsentRequestMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof denyConsentRequest>>, TError,DenyConsentRequestMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof denyConsentRequest>>, TError,DenyConsentRequestMutationVariables, TContext> => {
+
+const mutationKey = getDenyConsentRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof denyConsentRequest>>, DenyConsentRequestMutationVariables> = (props) => {
+          const {requestId} = props ?? {};
+
+          return  denyConsentRequest(requestId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DenyConsentRequestMutationResult = NonNullable<Awaited<ReturnType<typeof denyConsentRequest>>>
+
+    export type DenyConsentRequestMutationError = HTTPValidationError
+    export type DenyConsentRequestMutationVariables = {requestId: string}
+
+    /**
+ * @summary Deny Consent Request
+ */
+export const useDenyConsentRequest = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof denyConsentRequest>>, TError,DenyConsentRequestMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof denyConsentRequest>>,
+        TError,
+        DenyConsentRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDenyConsentRequestMutationOptions(options), queryClient);
+    }
+
+export const getListConnectedAppsUrl = () => {
+
+
+
+
+  return `/api/v1/oauth/connected-apps`
+}
+
+/**
+ * @summary List Connected Apps
+ */
+export const listConnectedApps = async ( options?: Parameters<typeof apiFetch>[1]): Promise<ConnectedAppRead[]> => {
+
+  return apiFetch<ConnectedAppRead[]>(getListConnectedAppsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListConnectedAppsQueryKey = () => {
+    return [
+    `/api/v1/oauth/connected-apps`
+    ] as const;
+    }
+
+
+export const getListConnectedAppsQueryOptions = <TData = Awaited<ReturnType<typeof listConnectedApps>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listConnectedApps>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListConnectedAppsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listConnectedApps>>> = ({ signal }) => listConnectedApps({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listConnectedApps>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListConnectedAppsQueryResult = NonNullable<Awaited<ReturnType<typeof listConnectedApps>>>
+export type ListConnectedAppsQueryError = unknown
+
+
+export function useListConnectedApps<TData = Awaited<ReturnType<typeof listConnectedApps>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listConnectedApps>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listConnectedApps>>,
+          TError,
+          Awaited<ReturnType<typeof listConnectedApps>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListConnectedApps<TData = Awaited<ReturnType<typeof listConnectedApps>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listConnectedApps>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listConnectedApps>>,
+          TError,
+          Awaited<ReturnType<typeof listConnectedApps>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListConnectedApps<TData = Awaited<ReturnType<typeof listConnectedApps>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listConnectedApps>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List Connected Apps
+ */
+
+export function useListConnectedApps<TData = Awaited<ReturnType<typeof listConnectedApps>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listConnectedApps>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListConnectedAppsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDisconnectAppUrl = (grantId: string,) => {
+
+
+
+
+  return `/api/v1/oauth/connected-apps/${grantId}`
+}
+
+/**
+ * Revoke the app's access at once: its tokens stop working on the next call.
+ * @summary Disconnect App
+ */
+export const disconnectApp = async (grantId: string, options?: Parameters<typeof apiFetch>[1]): Promise<void> => {
+
+  return apiFetch<void>(getDisconnectAppUrl(grantId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDisconnectAppMutationKey = () => ['disconnectApp'] as const;
+
+export const getDisconnectAppMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectApp>>, TError,DisconnectAppMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof disconnectApp>>, TError,DisconnectAppMutationVariables, TContext> => {
+
+const mutationKey = getDisconnectAppMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disconnectApp>>, DisconnectAppMutationVariables> = (props) => {
+          const {grantId} = props ?? {};
+
+          return  disconnectApp(grantId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisconnectAppMutationResult = NonNullable<Awaited<ReturnType<typeof disconnectApp>>>
+
+    export type DisconnectAppMutationError = HTTPValidationError
+    export type DisconnectAppMutationVariables = {grantId: string}
+
+    /**
+ * @summary Disconnect App
+ */
+export const useDisconnectApp = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectApp>>, TError,DisconnectAppMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof disconnectApp>>,
+        TError,
+        DisconnectAppMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDisconnectAppMutationOptions(options), queryClient);
+    }
 
 export const getLeadReportUrl = (params?: LeadReportParams,) => {
   const normalizedParams = new URLSearchParams();

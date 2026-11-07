@@ -1,10 +1,11 @@
-import { Link, Navigate, Outlet, useLocation } from '@tanstack/react-router'
+import { Link, Outlet, useLocation } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 
 import { Icon } from '../../components/Icon'
 import { Button } from '../../components/ui'
 import { cn } from '../../lib/cn'
 import { initials } from '../../lib/format'
+import { Redirect } from '../auth/Redirect'
 import { useSession } from '../auth/useSession'
 import { NotificationBell } from '../notifications/NotificationBell'
 import { useNotificationStream } from '../notifications/useNotificationStream'
@@ -12,7 +13,7 @@ import { Toasts } from '../notifications/Toasts'
 import { useTheme } from './theme'
 
 interface NavItem {
-  to: '/' | '/reports' | '/settings'
+  to: '/' | '/reports' | '/ai-apps' | '/settings'
   label: string
   adminOnly?: boolean
 }
@@ -20,6 +21,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { to: '/', label: 'Leads' },
   { to: '/reports', label: 'Reports' },
+  { to: '/ai-apps', label: 'AI apps' },
   { to: '/settings', label: 'Settings', adminOnly: true },
 ]
 
@@ -45,7 +47,7 @@ export function AppShell() {
     )
   }
   if (session.status === 'signed-out' || !session.user) {
-    return <Navigate to="/login" search={{ redirect: location.href }} replace />
+    return <Redirect to="sign-in" />
   }
 
   const items = NAV.filter((item) => !item.adminOnly || session.isAdmin)

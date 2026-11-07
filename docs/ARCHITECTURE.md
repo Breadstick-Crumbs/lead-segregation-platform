@@ -85,7 +85,8 @@ backend/
                             # responder, notifications, reporting
     integrations/           # imap, smtp, whatsapp, openai, slack/teams
     api/v1/                 # routers: auth, leads, users, reports,
-                            # notifications (SSE), settings, webhooks
+                            # notifications (SSE), settings, webhooks, oauth (consent)
+    mcp_server/             # MCP endpoint (/mcp) and its OAuth server, mounted in main.py
     workers/                # Procrastinate app, tasks, periodic jobs
   migrations/               # Alembic
   tests/                    # unit/ integration/ (mirrors app/)
@@ -98,7 +99,7 @@ frontend/
   src/
     app/          # router, providers, layout shell
     api/          # generated OpenAPI client + query hooks
-    features/     # leads/, reports/, notifications/, settings/, auth/
+    features/     # leads/, reports/, notifications/, settings/, auth/, connect/ (AI apps)
     components/   # shared UI (shadcn/ui based)
     lib/          # utils, formatting
 ```
