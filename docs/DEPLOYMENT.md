@@ -82,8 +82,8 @@ no `import` line, paste the contents of `deploy/leads.caddy` into it instead of 
 
 ### 2. Get the code and write the settings
 
-The repository is private, so either clone it with a deploy key, or copy a commit from a
-checkout with `git -c core.autocrlf=false archive HEAD | ssh root@server 'mkdir -p
+Clone it as below, or, to deploy a commit that isn't on GitHub yet, copy it from a checkout
+with `git -c core.autocrlf=false archive HEAD | ssh root@server 'mkdir -p
 /opt/lead-platform && tar -xC /opt/lead-platform'`. Turning off autocrlf stops a Windows
 checkout from giving the scripts CRLF endings.
 
