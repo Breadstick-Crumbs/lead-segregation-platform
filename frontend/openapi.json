@@ -1919,6 +1919,126 @@
         ]
       }
     },
+    "/api/v1/settings/integrations/config": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Integration Config",
+        "description": "WhatsApp, Slack, Teams and Microsoft settings: plain values, and for secrets only\nwhether each is set and where from (the dashboard or the server's environment).",
+        "operationId": "get_integration_config",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationConfig"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Update Integration Config",
+        "description": "Change only the fields sent. `null` removes the dashboard's value, so the server's\nenvironment value (if any) applies again. Takes effect within seconds everywhere.",
+        "operationId": "update_integration_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntegrationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationConfig"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/settings/integrations/{name}/check": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Check Integration",
+        "description": "Try the saved configuration against the real service: `whatsapp`, `slack`, `teams`\nor `microsoft`. Slack and Teams receive a visible test message.",
+        "operationId": "check_integration",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionCheck"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/webhooks/whatsapp": {
       "get": {
         "tags": [
@@ -2143,6 +2263,24 @@
         ],
         "title": "ConnectedAppRead"
       },
+      "ConnectionCheck": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "detail"
+        ],
+        "title": "ConnectionCheck"
+      },
       "ConsentDecision": {
         "properties": {
           "redirect_url": {
@@ -2315,6 +2453,44 @@
           "created_at"
         ],
         "title": "EventRead"
+      },
+      "FieldState": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value",
+            "description": "The value in use; always null for secrets"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "dashboard",
+                  "environment"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "Where the value in use comes from; null when it isn't set"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "source"
+        ],
+        "title": "FieldState"
       },
       "Funnel": {
         "properties": {
@@ -2524,6 +2700,40 @@
         ],
         "title": "HighValueLead"
       },
+      "IntegrationConfig": {
+        "properties": {
+          "fields": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FieldState"
+            },
+            "type": "object",
+            "title": "Fields"
+          },
+          "whatsapp_webhook_url": {
+            "type": "string",
+            "title": "Whatsapp Webhook Url",
+            "description": "The callback URL to give Meta"
+          },
+          "microsoft_redirect_uri": {
+            "type": "string",
+            "title": "Microsoft Redirect Uri",
+            "description": "The redirect URI to register in Entra"
+          },
+          "secrets_key": {
+            "type": "boolean",
+            "title": "Secrets Key",
+            "description": "Whether secrets can be saved (SECRETS_ENCRYPTION_KEY)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fields",
+          "whatsapp_webhook_url",
+          "microsoft_redirect_uri",
+          "secrets_key"
+        ],
+        "title": "IntegrationConfig"
+      },
       "IntegrationStatus": {
         "properties": {
           "openai": {
@@ -2578,6 +2788,131 @@
           "active_mailboxes"
         ],
         "title": "IntegrationStatus"
+      },
+      "IntegrationUpdate": {
+        "properties": {
+          "whatsapp_phone_number_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp Phone Number Id"
+          },
+          "whatsapp_access_token": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000,
+                "format": "password",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp Access Token"
+          },
+          "whatsapp_app_secret": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000,
+                "format": "password",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp App Secret"
+          },
+          "whatsapp_verify_token": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000,
+                "format": "password",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp Verify Token"
+          },
+          "slack_webhook_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "format": "password",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slack Webhook Url"
+          },
+          "teams_webhook_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000,
+                "format": "password",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Teams Webhook Url"
+          },
+          "entra_tenant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entra Tenant Id"
+          },
+          "entra_client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entra Client Id"
+          },
+          "entra_client_secret": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000,
+                "format": "password",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entra Client Secret"
+          }
+        },
+        "type": "object",
+        "title": "IntegrationUpdate",
+        "description": "Send only the fields to change. A value sets it; `null` removes the dashboard's value,\nso the server's environment setting (if any) applies again."
       },
       "LeadCategory": {
         "type": "string",

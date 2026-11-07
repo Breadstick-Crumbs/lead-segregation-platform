@@ -91,6 +91,13 @@ async def test_without_an_app_secret_the_webhook_fails_closed(
     db_session: AsyncSession, settings: Settings
 ) -> None:
     app = create_app()
+
+    async def _session() -> AsyncIterator[AsyncSession]:
+        yield db_session
+
+    # The test database too, not the dev one: integrations saved in a dev dashboard would
+    # otherwise supply an app secret.
+    app.dependency_overrides[get_session] = _session
     app.dependency_overrides[get_settings] = lambda: settings.model_copy(
         update={"whatsapp_app_secret": None}
     )

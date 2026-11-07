@@ -187,6 +187,25 @@ class WhatsAppClient:
             graph_version=settings.whatsapp_graph_version,
         )
 
+    async def describe_number(self, phone_number_id: str) -> str:
+        """The number's display form and verified name, to show that the ID and the token
+        work together (the settings screen's connection check)."""
+        try:
+            async with self._http() as http:
+                response = await http.get(
+                    f"{GRAPH_HOST}/{self._version}/{phone_number_id}",
+                    params={"fields": "display_phone_number,verified_name"},
+                )
+        except httpx.HTTPError as exc:
+            raise WhatsAppError(f"Graph API unreachable: {type(exc).__name__}") from exc
+        if response.status_code != httpx.codes.OK:
+            raise WhatsAppError(
+                f"Graph API answered {response.status_code} {_graph_error(response)}".strip(),
+                retryable=False,
+            )
+        body = response.json()
+        return f"{body.get('display_phone_number', '?')} ({body.get('verified_name', 'unnamed')})"
+
     async def download_media(self, media_id: str) -> tuple[bytes, str]:
         """Return (bytes, mime type). The media URL lives for minutes, so fetch it right away.
         Every failure becomes a WhatsAppError that says whether retrying can help."""

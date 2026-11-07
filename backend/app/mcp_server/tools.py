@@ -42,6 +42,7 @@ from app.schemas.mcp import (
     Teammate,
 )
 from app.schemas.report import Report
+from app.services import integrations
 from app.services.leads import LeadService, display_name
 from app.services.reports import ReportService
 
@@ -107,8 +108,9 @@ class LeadTools:
             user = await UserRepository(session).get(uuid.UUID(token.subject))
             if user is None or not user.is_active:
                 raise ToolError("Not authenticated")
+            settings = await integrations.effective(session, self._settings())
             try:
-                yield session, user, self._settings()
+                yield session, user, settings
             except ToolError:
                 raise
             except AppError as exc:

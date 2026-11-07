@@ -62,9 +62,6 @@ export function LoginPage() {
           Every lead,
           <span className="block text-accent">in its place.</span>
         </h1>
-        <p className="mt-4 text-body">
-          Email and WhatsApp enquiries, sorted and scored, with the ones that need you first.
-        </p>
 
         <div className="relative mt-8">
           <div aria-hidden className="absolute inset-0 -rotate-2 rounded-plate bg-plate" />

@@ -12,7 +12,7 @@ The web app sales reps and admins work in. The visual direction is in `docs/DESI
 | **Notifications** | A bell with the unread count, a panel listing alerts, and a toast for each new one, all live over SSE. A "Live" dot shows when the stream is connected. |
 | **AI apps** | The MCP server URL to add to Claude or ChatGPT, what the tools can do, and the user's connected apps with "last used" and Disconnect (`docs/MCP.md`). |
 | **Connect an AI app** | The consent page an AI app sends the browser to: who is signed in, what the app will be able to do, and where it returns to. Allow or Cancel. Outside the nav shell, like Sign in. |
-| **Settings** (admin) | Scoring weights and thresholds, with a live preview of the last 20 leads rescored. Also keywords, auto-reply templates per language, escalation emails, mailboxes, users and integration status. |
+| **Settings** (admin) | Scoring weights and thresholds, with a live preview of the last 20 leads rescored. Also keywords, auto-reply templates per language, escalation emails, mailboxes, users, and integrations. WhatsApp, Slack, Teams and Microsoft sign-in are set up right there: each has a form, a **Test** button, and the URLs to paste into Meta or Entra. Values saved there override `.env`, and removing one falls back to it. Secrets are encrypted with `SECRETS_ENCRYPTION_KEY` and never shown again. A change applies everywhere within about 15 seconds, without a restart. OpenAI and the encryption key stay server settings. |
 
 Light and dark themes are both supported. Arabic content keeps its direction (`dir="auto"`) and uses IBM Plex Sans Arabic.
 

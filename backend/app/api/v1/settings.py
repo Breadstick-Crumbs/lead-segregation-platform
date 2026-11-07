@@ -4,7 +4,8 @@ from typing import Any
 
 from fastapi import APIRouter
 
-from app.api.deps import AdminUser, SessionDep, SettingsDep
+from app.api.deps import AdminUser, EnvSettingsDep, SessionDep, SettingsDep
+from app.schemas.integrations import ConnectionCheck, IntegrationConfig, IntegrationUpdate
 from app.schemas.settings_api import (
     IntegrationStatus,
     ScoringPreview,
@@ -12,6 +13,7 @@ from app.schemas.settings_api import (
     ScoringPreviewRequest,
     SettingsDocument,
 )
+from app.services.integrations import IntegrationSettings, check_connection
 from app.services.leads import display_name
 from app.services.settings_admin import SettingsAdmin
 
@@ -73,3 +75,28 @@ async def integration_status(
 ) -> IntegrationStatus:
     """Which external services are configured (never their secrets)."""
     return IntegrationStatus.model_validate(await SettingsAdmin(session, settings).integrations())
+
+
+@router.get("/integrations/config")
+async def get_integration_config(
+    _: AdminUser, session: SessionDep, env: EnvSettingsDep
+) -> IntegrationConfig:
+    """WhatsApp, Slack, Teams and Microsoft settings: plain values, and for secrets only
+    whether each is set and where from (the dashboard or the server's environment)."""
+    return await IntegrationSettings(session, env).read()
+
+
+@router.patch("/integrations/config")
+async def update_integration_config(
+    body: IntegrationUpdate, admin: AdminUser, session: SessionDep, env: EnvSettingsDep
+) -> IntegrationConfig:
+    """Change only the fields sent. `null` removes the dashboard's value, so the server's
+    environment value (if any) applies again. Takes effect within seconds everywhere."""
+    return await IntegrationSettings(session, env).save(body, by_user_id=admin.id)
+
+
+@router.post("/integrations/{name}/check")
+async def check_integration(name: str, _: AdminUser, settings: SettingsDep) -> ConnectionCheck:
+    """Try the saved configuration against the real service: `whatsapp`, `slack`, `teams`
+    or `microsoft`. Slack and Teams receive a visible test message."""
+    return await check_connection(name, settings)

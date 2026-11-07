@@ -5,9 +5,15 @@ from httpx import ASGITransport, AsyncClient
 
 from app.core.runtime import use_selector_event_loop_on_windows
 from app.main import create_app
+from app.services import integrations
 
 # Must run before pytest-asyncio creates the event loop (psycopg needs the selector loop).
 use_selector_event_loop_on_windows()
+
+
+@pytest.fixture(autouse=True)
+def _fresh_integration_settings() -> None:
+    integrations.invalidate_cache()
 
 
 @pytest.fixture

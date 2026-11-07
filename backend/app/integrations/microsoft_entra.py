@@ -114,6 +114,25 @@ class EntraClient:
         )
         return f"{self._base}/oauth2/v2.0/authorize?{query}"
 
+    async def check_credentials(self) -> None:
+        """Ask for an app-only token: it succeeds only if the tenant, client ID and secret
+        all match. Used by the settings screen's connection check; the token is discarded."""
+        async with self._http() as http:
+            response = await http.post(
+                f"{self._base}/oauth2/v2.0/token",
+                data={
+                    "client_id": self._client_id,
+                    "client_secret": self._client_secret,
+                    "grant_type": "client_credentials",
+                    "scope": "https://graph.microsoft.com/.default",
+                },
+            )
+        if response.status_code != httpx.codes.OK:
+            body = response.json() if response.content else {}
+            # e.g. "AADSTS7000215: Invalid client secret provided." (first line only)
+            described = str(body.get("error_description") or body.get("error") or "unknown")
+            raise EntraError(described.splitlines()[0][:200])
+
     async def exchange_code(self, code: str, *, code_verifier: str) -> str:
         """Redeem the authorization code; returns the raw ID token."""
         async with self._http() as http:

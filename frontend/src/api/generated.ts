@@ -62,6 +62,11 @@ export interface ConnectedAppRead {
   last_used_at: string | null;
 }
 
+export interface ConnectionCheck {
+  ok: boolean;
+  detail: string;
+}
+
 export interface ConsentDecision {
   redirect_url: string;
 }
@@ -123,6 +128,24 @@ export interface EventRead {
   actor_id: string | null;
   payload: EventReadPayload;
   created_at: string;
+}
+
+/**
+ * Where the value in use comes from; null when it isn't set
+ */
+export type FieldStateSource = typeof FieldStateSource[keyof typeof FieldStateSource] | null;
+
+
+export const FieldStateSource = {
+  dashboard: 'dashboard',
+  environment: 'environment',
+} as const;
+
+export interface FieldState {
+  /** The value in use; always null for secrets */
+  value: string | null;
+  /** Where the value in use comes from; null when it isn't set */
+  source: FieldStateSource;
 }
 
 /**
@@ -214,6 +237,18 @@ export interface HighValue {
   top: HighValueLead[];
 }
 
+export type IntegrationConfigFields = {[key: string]: FieldState};
+
+export interface IntegrationConfig {
+  fields: IntegrationConfigFields;
+  /** The callback URL to give Meta */
+  whatsapp_webhook_url: string;
+  /** The redirect URI to register in Entra */
+  microsoft_redirect_uri: string;
+  /** Whether secrets can be saved (SECRETS_ENCRYPTION_KEY) */
+  secrets_key: boolean;
+}
+
 export interface IntegrationStatus {
   openai: boolean;
   whatsapp: boolean;
@@ -223,6 +258,22 @@ export interface IntegrationStatus {
   teams: boolean;
   secrets_key: boolean;
   active_mailboxes: number;
+}
+
+/**
+ * Send only the fields to change. A value sets it; `null` removes the dashboard's value,
+ * so the server's environment setting (if any) applies again.
+ */
+export interface IntegrationUpdate {
+  whatsapp_phone_number_id?: string | null;
+  whatsapp_access_token?: string | null;
+  whatsapp_app_secret?: string | null;
+  whatsapp_verify_token?: string | null;
+  slack_webhook_url?: string | null;
+  teams_webhook_url?: string | null;
+  entra_tenant_id?: string | null;
+  entra_client_id?: string | null;
+  entra_client_secret?: string | null;
 }
 
 export type ProcessingState = typeof ProcessingState[keyof typeof ProcessingState];
@@ -4569,6 +4620,275 @@ export function useIntegrationStatus<TData = Awaited<ReturnType<typeof integrati
 
 
 
+
+export const getGetIntegrationConfigUrl = () => {
+
+
+
+
+  return `/api/v1/settings/integrations/config`
+}
+
+/**
+ * WhatsApp, Slack, Teams and Microsoft settings: plain values, and for secrets only
+ * whether each is set and where from (the dashboard or the server's environment).
+ * @summary Get Integration Config
+ */
+export const getIntegrationConfig = async ( options?: Parameters<typeof apiFetch>[1]): Promise<IntegrationConfig> => {
+
+  return apiFetch<IntegrationConfig>(getGetIntegrationConfigUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetIntegrationConfigQueryKey = () => {
+    return [
+    `/api/v1/settings/integrations/config`
+    ] as const;
+    }
+
+
+export const getGetIntegrationConfigQueryOptions = <TData = Awaited<ReturnType<typeof getIntegrationConfig>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getIntegrationConfig>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetIntegrationConfigQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getIntegrationConfig>>> = ({ signal }) => getIntegrationConfig({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getIntegrationConfig>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetIntegrationConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getIntegrationConfig>>>
+export type GetIntegrationConfigQueryError = unknown
+
+
+export function useGetIntegrationConfig<TData = Awaited<ReturnType<typeof getIntegrationConfig>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getIntegrationConfig>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getIntegrationConfig>>,
+          TError,
+          Awaited<ReturnType<typeof getIntegrationConfig>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetIntegrationConfig<TData = Awaited<ReturnType<typeof getIntegrationConfig>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getIntegrationConfig>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getIntegrationConfig>>,
+          TError,
+          Awaited<ReturnType<typeof getIntegrationConfig>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetIntegrationConfig<TData = Awaited<ReturnType<typeof getIntegrationConfig>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getIntegrationConfig>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Integration Config
+ */
+
+export function useGetIntegrationConfig<TData = Awaited<ReturnType<typeof getIntegrationConfig>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getIntegrationConfig>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetIntegrationConfigQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateIntegrationConfigUrl = () => {
+
+
+
+
+  return `/api/v1/settings/integrations/config`
+}
+
+/**
+ * Change only the fields sent. `null` removes the dashboard's value, so the server's
+ * environment value (if any) applies again. Takes effect within seconds everywhere.
+ * @summary Update Integration Config
+ */
+export const updateIntegrationConfig = async (integrationUpdate: IntegrationUpdate, options?: Parameters<typeof apiFetch>[1]): Promise<IntegrationConfig> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<IntegrationConfig>(getUpdateIntegrationConfigUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(integrationUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateIntegrationConfigMutationKey = () => ['updateIntegrationConfig'] as const;
+
+export const getUpdateIntegrationConfigMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateIntegrationConfig>>, TError,UpdateIntegrationConfigMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateIntegrationConfig>>, TError,UpdateIntegrationConfigMutationVariables, TContext> => {
+
+const mutationKey = getUpdateIntegrationConfigMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateIntegrationConfig>>, UpdateIntegrationConfigMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateIntegrationConfig(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateIntegrationConfigMutationResult = NonNullable<Awaited<ReturnType<typeof updateIntegrationConfig>>>
+    export type UpdateIntegrationConfigMutationBody = IntegrationUpdate
+    export type UpdateIntegrationConfigMutationError = HTTPValidationError
+    export type UpdateIntegrationConfigMutationVariables = {data: IntegrationUpdate}
+
+    /**
+ * @summary Update Integration Config
+ */
+export const useUpdateIntegrationConfig = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateIntegrationConfig>>, TError,UpdateIntegrationConfigMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateIntegrationConfig>>,
+        TError,
+        UpdateIntegrationConfigMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateIntegrationConfigMutationOptions(options), queryClient);
+    }
+
+export const getCheckIntegrationUrl = (name: string,) => {
+
+
+
+
+  return `/api/v1/settings/integrations/${name}/check`
+}
+
+/**
+ * Try the saved configuration against the real service: `whatsapp`, `slack`, `teams`
+ * or `microsoft`. Slack and Teams receive a visible test message.
+ * @summary Check Integration
+ */
+export const checkIntegration = async (name: string, options?: Parameters<typeof apiFetch>[1]): Promise<ConnectionCheck> => {
+
+  return apiFetch<ConnectionCheck>(getCheckIntegrationUrl(name),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckIntegrationMutationKey = () => ['checkIntegration'] as const;
+
+export const getCheckIntegrationMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkIntegration>>, TError,CheckIntegrationMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkIntegration>>, TError,CheckIntegrationMutationVariables, TContext> => {
+
+const mutationKey = getCheckIntegrationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkIntegration>>, CheckIntegrationMutationVariables> = (props) => {
+          const {name} = props ?? {};
+
+          return  checkIntegration(name,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckIntegrationMutationResult = NonNullable<Awaited<ReturnType<typeof checkIntegration>>>
+
+    export type CheckIntegrationMutationError = HTTPValidationError
+    export type CheckIntegrationMutationVariables = {name: string}
+
+    /**
+ * @summary Check Integration
+ */
+export const useCheckIntegration = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkIntegration>>, TError,CheckIntegrationMutationVariables, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof checkIntegration>>,
+        TError,
+        CheckIntegrationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCheckIntegrationMutationOptions(options), queryClient);
+    }
 
 export const getVerifyWhatsappWebhookUrl = (params?: VerifyWhatsappWebhookParams,) => {
   const normalizedParams = new URLSearchParams();

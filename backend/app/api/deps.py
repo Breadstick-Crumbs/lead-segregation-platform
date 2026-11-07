@@ -1,6 +1,5 @@
 """Shared FastAPI dependencies: database session, settings and the authenticated user."""
 
-from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends
@@ -15,9 +14,20 @@ from app.integrations.microsoft_entra import EntraClient
 from app.models import User
 from app.models.enums import Role
 from app.repositories.users import UserRepository
+from app.services import integrations
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
-SettingsDep = Annotated[Settings, Depends(get_settings)]
+# The environment's settings alone, for the screen that edits the dashboard's overrides.
+EnvSettingsDep = Annotated[Settings, Depends(get_settings)]
+
+
+async def get_effective_settings(session: SessionDep, base: EnvSettingsDep) -> Settings:
+    """Settings as they apply now: the environment, with the integrations saved in the
+    dashboard on top (`app.services.integrations`)."""
+    return await integrations.effective(session, base)
+
+
+SettingsDep = Annotated[Settings, Depends(get_effective_settings)]
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -74,16 +84,24 @@ async def require_admin(user: CurrentUser) -> User:
 AdminUser = Annotated[User, Depends(require_admin)]
 
 
-@lru_cache
-def _shared_entra_client() -> EntraClient:
-    # One instance per process so its JWKS cache is shared across requests.
-    return EntraClient.from_settings(get_settings())
+_entra_clients: dict[tuple[str, ...], EntraClient] = {}
 
 
 def get_entra_client(settings: SettingsDep) -> EntraClient:
-    if not settings.entra_enabled:
+    if not settings.entra_enabled or settings.entra_client_secret is None:
         raise NotFoundError("Sign in with Microsoft is not enabled")
-    return _shared_entra_client()
+    # One instance per configuration, so its JWKS cache is shared across requests and a
+    # change saved in the dashboard takes effect on the next sign-in.
+    key = (
+        str(settings.entra_tenant_id),
+        str(settings.entra_client_id),
+        settings.entra_client_secret.get_secret_value(),
+        settings.entra_callback_url,
+    )
+    if key not in _entra_clients:
+        _entra_clients.clear()
+        _entra_clients[key] = EntraClient.from_settings(settings)
+    return _entra_clients[key]
 
 
 EntraClientDep = Annotated[EntraClient, Depends(get_entra_client)]

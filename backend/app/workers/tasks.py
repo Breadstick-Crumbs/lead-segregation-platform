@@ -7,7 +7,7 @@ from procrastinate import JobContext, RetryStrategy
 from procrastinate.jobs import Status
 from sqlalchemy import delete
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
 from app.db.session import SessionFactory
 from app.integrations.chat_webhooks import ChatNotifier, SlackNotifier, TeamsNotifier
@@ -25,6 +25,7 @@ from app.integrations.whatsapp import WhatsAppClient, WhatsAppError
 from app.models import InboundWebhook
 from app.models.enums import Channel, DeliveryStatus, NotificationKind
 from app.repositories.leads import DeliveryUpdate
+from app.services import integrations
 from app.services.auto_reply import AutoReplyService, enqueue_auto_reply
 from app.services.lead_pipeline import LeadPipeline
 from app.services.lead_queue import sweep_pending_leads
@@ -36,6 +37,14 @@ from app.workers import names
 from app.workers.app import app
 
 logger = get_logger(__name__)
+
+
+async def current_settings() -> Settings:
+    """The environment plus the integrations saved in the dashboard (cached briefly), so a
+    WhatsApp token or webhook URL changed there applies here without a restart."""
+    async with SessionFactory() as session:
+        return await integrations.effective(session, get_settings())
+
 
 # procrastinate's max_attempts counts *retries*: N retries means N + 1 runs.
 TRANSCRIBE_RUNS = 5
@@ -51,7 +60,7 @@ KEEP_PROCESSED_WEBHOOKS = timedelta(days=30)
 @app.task(name=names.PROCESS_WHATSAPP_WEBHOOK, retry=RETRY)
 async def process_whatsapp_webhook(webhook_id: str) -> None:
     async with SessionFactory() as session:
-        inbox = WhatsAppInbox(session, get_settings())
+        inbox = WhatsAppInbox(session, await current_settings())
         try:
             counts = await inbox.process_webhook(uuid.UUID(webhook_id))
         except Exception as exc:
@@ -66,7 +75,7 @@ async def process_whatsapp_webhook(webhook_id: str) -> None:
     pass_context=True,
 )
 async def transcribe_message(context: JobContext, message_id: str) -> None:
-    settings = get_settings()
+    settings = await current_settings()
     whatsapp: WhatsAppClient | None
     transcriber: Transcriber | None
     try:
@@ -92,7 +101,7 @@ async def transcribe_message(context: JobContext, message_id: str) -> None:
     pass_context=True,
 )
 async def process_lead(context: JobContext, lead_id: str) -> None:
-    settings = get_settings()
+    settings = await current_settings()
     analyzer: LeadAnalyzer | None
     embedder: Embedder | None
     try:
@@ -140,7 +149,7 @@ async def sweep_pending(timestamp: int) -> None:
     pass_context=True,
 )
 async def send_auto_reply(context: JobContext, lead_id: str) -> None:
-    settings = get_settings()
+    settings = await current_settings()
     try:
         whatsapp: WhatsAppClient | None = WhatsAppClient.from_settings(settings)
     except WhatsAppError:
@@ -162,7 +171,7 @@ async def recheck_delivery_receipts(receipts: list[dict[str, str | None]]) -> No
         for r in receipts
     ]
     async with SessionFactory() as session:
-        dropped = await WhatsAppInbox(session, get_settings()).apply_receipts(
+        dropped = await WhatsAppInbox(session, await current_settings()).apply_receipts(
             updates, recheck_unmatched=False
         )
     if dropped:
@@ -172,14 +181,14 @@ async def recheck_delivery_receipts(receipts: list[dict[str, str | None]]) -> No
 @app.task(name=names.NOTIFY_LEAD, retry=RETRY)
 async def notify_lead(lead_id: str, kind: str) -> None:
     async with SessionFactory() as session:
-        raised = await NotificationService(session, get_settings()).raise_alert(
+        raised = await NotificationService(session, await current_settings()).raise_alert(
             uuid.UUID(lead_id), NotificationKind(kind)
         )
     logger.info("notify_lead_done", lead_id=lead_id, kind=kind, raised=raised)
 
 
-def _chat_notifiers() -> dict[str, ChatNotifier]:
-    settings = get_settings()
+async def _chat_notifiers() -> dict[str, ChatNotifier]:
+    settings = await current_settings()
     notifiers: dict[str, ChatNotifier] = {}
     if settings.slack_webhook_url is not None:
         notifiers["slack"] = SlackNotifier(settings.slack_webhook_url.get_secret_value())
@@ -197,13 +206,13 @@ async def deliver_alert(
     context: JobContext, lead_id: str, kind: str, channel: str, target: str | None
 ) -> None:
     async with SessionFactory() as session:
-        await NotificationService(session, get_settings()).deliver(
+        await NotificationService(session, await current_settings()).deliver(
             uuid.UUID(lead_id),
             NotificationKind(kind),
             channel,
             target,
             email=AioSmtpSender(),
-            chat=_chat_notifiers(),
+            chat=await _chat_notifiers(),
             final_attempt=context.job.attempts >= ALERT_RUNS - 1,
         )
 
@@ -213,7 +222,7 @@ async def deliver_alert(
 async def sweep_sla(timestamp: int) -> None:
     """Every minute: escalate high and critical leads nobody has answered within the SLA."""
     async with SessionFactory() as session:
-        queued = await NotificationService(session, get_settings()).sweep_sla()
+        queued = await NotificationService(session, await current_settings()).sweep_sla()
     if queued:
         logger.info("sla_breaches_escalated", count=queued)
 
@@ -225,7 +234,7 @@ async def sweep_sla(timestamp: int) -> None:
 )
 async def send_message(context: JobContext, message_id: str) -> None:
     """A rep's reply from the dashboard (queued by the API)."""
-    settings = get_settings()
+    settings = await current_settings()
     try:
         whatsapp: WhatsAppClient | None = WhatsAppClient.from_settings(settings)
     except WhatsAppError:
@@ -242,7 +251,7 @@ async def send_message(context: JobContext, message_id: str) -> None:
 @app.task(name=names.POLL_MAILBOX, retry=RetryStrategy(max_attempts=1, wait=30))
 async def poll_mailbox(mailbox_id: str) -> None:
     async with SessionFactory() as session:
-        counts = await MailboxService(session, get_settings()).poll(
+        counts = await MailboxService(session, await current_settings()).poll(
             uuid.UUID(mailbox_id), ImapToolsReader()
         )
     logger.info("poll_mailbox_done", mailbox_id=mailbox_id, **counts)
@@ -253,7 +262,7 @@ async def poll_mailbox(mailbox_id: str) -> None:
 async def poll_all_mailboxes(timestamp: int) -> None:
     """Every minute, queue a poll per active mailbox (skipped while one is still waiting)."""
     async with SessionFactory() as session:
-        for mailbox_id in await MailboxService(session, get_settings()).active_ids():
+        for mailbox_id in await MailboxService(session, await current_settings()).active_ids():
             await enqueue_poll(session, mailbox_id)
         await session.commit()
 
@@ -272,7 +281,7 @@ async def prune_history(timestamp: int) -> None:
             )
         )
         await session.commit()
-        oauth = await OAuthService(session, get_settings()).prune()
+        oauth = await OAuthService(session, await current_settings()).prune()
     logger.info(
         "history_pruned",
         webhooks=result.rowcount,  # type: ignore[attr-defined]
