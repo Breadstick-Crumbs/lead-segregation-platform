@@ -68,7 +68,7 @@ function AlertForm({
       <SelectField
         label="Send alert emails from"
         value={draft.alert_mailbox_id ?? ''}
-        onChange={(e) => setDraft({ ...draft, alert_mailbox_id: e.target.value || null })}
+        onValueChange={(next) => setDraft({ ...draft, alert_mailbox_id: next || null })}
         hint={mailboxes.data?.length ? undefined : 'Add a mailbox first, under Mailboxes.'}
       >
         <option value="">The first active mailbox</option>

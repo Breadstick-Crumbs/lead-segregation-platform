@@ -1,5 +1,5 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 
 import {
   useLeadStats,
@@ -9,6 +9,7 @@ import {
   type LeadStats,
 } from '../../api/generated'
 import { Icon } from '../../components/Icon'
+import { Select } from '../../components/Select'
 import {
   Button,
   Card,
@@ -228,17 +229,21 @@ function FilterSelect({
   onChange: (value: string | undefined) => void
   children: React.ReactNode
 }) {
+  const labelId = useId()
   return (
-    <label className="flex flex-col gap-1">
-      <span className="font-mono text-[11px] tracking-[0.14em] text-muted uppercase">{label}</span>
-      <select
-        className="min-h-11 rounded-control border border-border bg-surface px-3 text-[15px] text-ink"
+    <div className="flex flex-col gap-1">
+      <span id={labelId} className="font-mono text-[11px] tracking-[0.14em] text-muted uppercase">
+        {label}
+      </span>
+      <Select
+        labelledBy={labelId}
         value={value ?? ''}
-        onChange={(event) => onChange(event.target.value || undefined)}
+        onValueChange={(next) => onChange(next || undefined)}
+        className="text-[15px]"
       >
         {children}
-      </select>
-    </label>
+      </Select>
+    </div>
   )
 }
 

@@ -437,7 +437,7 @@ function Controls({ lead }: { lead: LeadDetail }) {
         label="Status"
         value={status}
         disabled={update.isPending}
-        onChange={(e) => setStatus(e.target.value as LeadStatus)}
+        onValueChange={(next) => setStatus(next as LeadStatus)}
         hint={lead.status === 'new' ? 'Moving it on stops the SLA clock.' : undefined}
       >
         {LEAD_STATUSES.map((s) => (
@@ -451,7 +451,7 @@ function Controls({ lead }: { lead: LeadDetail }) {
           label="Owner"
           value={owner}
           disabled={update.isPending}
-          onChange={(e) => setOwner(e.target.value)}
+          onValueChange={setOwner}
         >
           <option value="">Unassigned</option>
           {ownerMissing && lead.owner ? (

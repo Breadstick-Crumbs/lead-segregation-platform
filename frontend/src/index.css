@@ -57,6 +57,44 @@ body {
   outline-offset: 2px;
 }
 
+/* The pointer says what's clickable, everywhere: Tailwind's reset leaves buttons with the
+   default arrow. Disabled controls show they can't be used; text fields keep the I-beam. */
+@layer base {
+  a[href],
+  button,
+  summary,
+  select,
+  label[for],
+  [role='button'],
+  [role='tab'],
+  [role='option'],
+  [role='menuitem'],
+  [role='switch'],
+  [role='checkbox'],
+  input[type='checkbox'],
+  input[type='radio'],
+  input[type='range'],
+  input[type='file'],
+  input[type='color'],
+  input[type='submit'],
+  input[type='button'],
+  input[type='reset'] {
+    cursor: pointer;
+  }
+
+  :is(button, select, input, textarea, [role='option'], [role='button']):is(
+    :disabled,
+    [aria-disabled='true']
+  ) {
+    cursor: not-allowed;
+  }
+
+  /* A label that wraps a checkbox or radio is clickable too. */
+  label:has(> input[type='checkbox'], > input[type='radio']) {
+    cursor: pointer;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

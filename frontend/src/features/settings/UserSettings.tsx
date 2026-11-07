@@ -19,6 +19,7 @@ import {
   Skeleton,
   TextField,
 } from '../../components/ui'
+import { Select } from '../../components/Select'
 import { timeAgo } from '../../lib/format'
 import { useSession } from '../auth/useSession'
 
@@ -94,18 +95,20 @@ function UserRow({ user }: { user: UserRead }) {
       <p className="w-36 font-mono text-xs text-muted">
         Last sign-in {timeAgo(user.last_login_at)}
       </p>
-      <label className="flex items-center gap-2">
-        <span className="sr-only">Role for {user.full_name}</span>
-        <select
+      <div className="w-36">
+        <span id={`role-${user.id}`} className="sr-only">
+          Role for {user.full_name}
+        </span>
+        <Select
+          labelledBy={`role-${user.id}`}
           value={user.role}
           disabled={update.isPending}
-          onChange={(e) => void change({ role: e.target.value as Role })}
-          className="min-h-11 rounded-control border border-border bg-surface px-3 text-ink"
+          onValueChange={(next) => void change({ role: next as Role })}
         >
           <option value="sales_rep">Sales rep</option>
           <option value="admin">Admin</option>
-        </select>
-      </label>
+        </Select>
+      </div>
       <Button
         variant={user.is_active ? 'danger' : 'secondary'}
         size="sm"
@@ -185,7 +188,7 @@ function AddUser({ onDone }: { onDone: () => void }) {
           <SelectField
             label="Role"
             value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
+            onValueChange={(next) => setForm({ ...form, role: next as Role })}
           >
             <option value="sales_rep">Sales rep</option>
             <option value="admin">Admin</option>

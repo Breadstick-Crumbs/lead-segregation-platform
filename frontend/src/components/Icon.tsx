@@ -13,6 +13,7 @@ const PATHS = {
   close: 'M6 6l12 12 M18 6L6 18',
   chevronLeft: 'M15 6l-6 6 6 6',
   chevronRight: 'M9 6l6 6-6 6',
+  chevronDown: 'M6 9l6 6 6-6',
   logout: 'M15 4h4v16h-4 M10 8l-4 4 4 4 M6 12h10',
   send: 'M4 12l16-8-6 16-2.5-6.5L4 12z',
   note: 'M6 4h9l3 3v13H6z M9 10h6 M9 14h6',

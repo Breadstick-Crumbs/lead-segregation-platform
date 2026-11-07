@@ -8,12 +8,12 @@ import {
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
-  type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react'
 
 import { cn } from '../lib/cn'
 import { Icon, type IconName } from './Icon'
+import { Select } from './Select'
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
@@ -172,7 +172,7 @@ function FieldShell({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-semibold text-ink">
+      <label id={`${id}-label`} htmlFor={id} className="text-sm font-semibold text-ink">
         {label}
       </label>
       {children}
@@ -244,30 +244,41 @@ export function TextAreaField({
   )
 }
 
+/** A labelled select in the app's style; options are `<option>` children (see `Select`). */
 export function SelectField({
   label,
   hint,
   error,
   className,
   children,
-  ...props
-}: SelectHTMLAttributes<HTMLSelectElement> & {
+  value,
+  onValueChange,
+  disabled,
+}: {
   label: string
   hint?: string
   error?: string | null
+  className?: string
+  children: ReactNode
+  value: string
+  onValueChange: (value: string) => void
+  disabled?: boolean
 }) {
   const id = useId()
   return (
     <FieldShell id={id} label={label} hint={hint} error={error}>
-      <select
+      <Select
         id={id}
-        className={cn(CONTROL, 'min-h-11 pr-8', className)}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy(id, error, hint)}
-        {...props}
+        labelledBy={`${id}-label`}
+        value={value}
+        onValueChange={onValueChange}
+        disabled={disabled}
+        invalid={Boolean(error)}
+        describedBy={describedBy(id, error, hint)}
+        className={className}
       >
         {children}
-      </select>
+      </Select>
     </FieldShell>
   )
 }

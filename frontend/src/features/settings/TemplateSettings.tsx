@@ -69,7 +69,7 @@ function TemplateForm({
         <SelectField
           label="Default language"
           value={draft.default_language}
-          onChange={(e) => setDraft({ ...draft, default_language: e.target.value })}
+          onValueChange={(next) => setDraft({ ...draft, default_language: next })}
         >
           {languages.map((c) => (
             <option key={c} value={c}>

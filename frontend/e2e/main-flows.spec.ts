@@ -27,14 +27,15 @@ test('open a lead and change its status', async ({ page }) => {
   await expect(page).toHaveURL(/\/leads\//)
   await expect(page.getByRole('heading', { name: 'Conversation' })).toBeVisible()
 
-  const status = page.getByLabel('Status')
-  const next = (await status.inputValue()) === 'qualified' ? 'contacted' : 'qualified'
-  await status.selectOption(next)
+  const status = page.getByRole('combobox', { name: /^Status/ })
+  const next = (await status.textContent())?.includes('Qualified') ? 'Contacted' : 'Qualified'
+  await status.click()
+  await page.getByRole('option', { name: next }).click()
   await page.getByRole('button', { name: 'Save' }).click()
 
   await expect(page.getByRole('button', { name: 'Save' })).toBeHidden()
   await page.reload()
-  await expect(page.getByLabel('Status')).toHaveValue(next)
+  await expect(page.getByRole('combobox', { name: /^Status/ })).toHaveText(next)
 })
 
 test('a new WhatsApp lead arrives and gets a reply', async ({ page, request }) => {
