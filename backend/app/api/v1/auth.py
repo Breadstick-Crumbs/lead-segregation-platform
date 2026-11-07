@@ -1,10 +1,13 @@
+import ipaddress
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Response, status
+from fastapi import APIRouter, Cookie, Request, Response, status
 
-from app.api.deps import CurrentUser, SessionDep, SettingsDep
+from app.api.deps import CurrentUser, RateLimiterDep, SessionDep, SettingsDep
+from app.api.rate_limit import too_many_requests_message
 from app.core.config import Settings
-from app.core.errors import AuthenticationError
+from app.core.errors import AuthenticationError, RateLimitedError
+from app.core.rate_limit import Limit
 from app.schemas.auth import AuthProviders, LoginRequest, TokenResponse
 from app.schemas.user import PasswordChange, UserRead
 from app.services.auth import AuthService, IssuedTokens
@@ -15,6 +18,21 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 REFRESH_COOKIE = "refresh_token"
 # Scoped to the auth endpoints so the cookie isn't sent with every API call.
 REFRESH_COOKIE_PATH = "/api/v1/auth"
+
+# Failed sign-ins per account from one network (an IPv4 /24 or IPv6 /64): slows password
+# guessing against one user, while someone elsewhere can't lock that user out by failing on
+# purpose. See docs/SECURITY.md#rate-limiting.
+ACCOUNT_LOGIN_FAILURES = Limit(requests=10, window_seconds=15 * 60)
+
+
+def _network(client_ip: str) -> str:
+    try:
+        address = ipaddress.ip_address(client_ip)
+    except ValueError:
+        return client_ip
+    prefix = 24 if isinstance(address, ipaddress.IPv4Address) else 64
+    return str(ipaddress.ip_network(f"{address}/{prefix}", strict=False))
+
 
 RefreshCookie = Annotated[str | None, Cookie(alias=REFRESH_COOKIE)]
 
@@ -49,9 +67,25 @@ async def auth_providers(settings: SettingsDep) -> AuthProviders:
 
 @router.post("/login")
 async def login(
-    body: LoginRequest, response: Response, session: SessionDep, settings: SettingsDep
+    body: LoginRequest,
+    request: Request,
+    *,
+    response: Response,
+    session: SessionDep,
+    settings: SettingsDep,
+    limiter: RateLimiterDep,
 ) -> TokenResponse:
+    client_ip = request.client.host if request.client else "unknown"
+    # The email is already trimmed and lower-cased.
+    key = f"login_account:{body.email}:{_network(client_ip)}"
+    # The slot is taken before the password check (which awaits), so parallel attempts
+    # can't all pass, and handed back if the sign-in succeeds: only failures count.
+    retry_after = limiter.hit(key, ACCOUNT_LOGIN_FAILURES)
+    if retry_after is not None:
+        seconds, message = too_many_requests_message(retry_after)
+        raise RateLimitedError(message, retry_after_seconds=seconds)
     tokens = await AuthService(session, settings).login(body.email, body.password)
+    limiter.release(key)
     return _token_response(response, tokens, settings)
 
 

@@ -23,6 +23,9 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://leads:leads@postgres:5432/leads
     ports: ["8000:8000"]
+    networks:
+      default:
+        aliases: [lead-platform-api]  # the name frontend/nginx.conf proxies to
     depends_on:
       postgres: { condition: service_healthy }
 
@@ -33,14 +36,20 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://leads:leads@postgres:5432/leads
     # Runs queued jobs (webhook parsing, transcription, mailbox polls) and the periodic poller.
-    command: ["/app/.venv/bin/procrastinate", "--app=app.workers.app.app", "worker"]
+    command: ["procrastinate", "--app=app.workers.worker.app", "worker"]
+    # The image's check is the API's HTTP endpoint; the worker has none.
+    healthcheck:
+      test: ["CMD", "procrastinate", "--app=app.workers.worker.app", "healthchecks"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     depends_on:
       postgres: { condition: service_healthy }
 
   web:
-    build: ./frontend
+    build: ./frontend  # nginx as a non-root user, on :8080 inside the container
     restart: unless-stopped
-    ports: ["8088:80"]
+    ports: ["8088:8080"]
     depends_on: [api]
 
 volumes:

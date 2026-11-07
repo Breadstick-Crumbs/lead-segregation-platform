@@ -38,7 +38,7 @@ from app.services.mailboxes import MailboxService
 from app.services.oauth import OAuthService
 from app.services.reports import ReportService
 from app.workers import names
-from tests.integration.conftest import CreateUser, bearer, login, queued_jobs
+from tests.integration.conftest import TEST_PASSWORD, CreateUser, bearer, login, queued_jobs
 from tests.integration.test_leads_api import _lead
 from tests.integration.test_mailboxes import NEW_MAILBOX
 
@@ -435,6 +435,38 @@ async def test_disconnecting_an_app_cuts_it_off(
     assert gone.status_code == 204
     assert (await _rpc(mcp, tokens["access_token"], "tools/list")).status_code == 401
     assert (await mcp.get("/api/v1/oauth/connected-apps", headers=headers)).json() == []
+
+
+@pytest.mark.parametrize("how", ["admin_reset", "own_change"])
+async def test_a_password_change_disconnects_ai_apps(
+    mcp: AsyncClient, settings: Settings, team: dict[str, User], how: str
+) -> None:
+    # Regression: a stolen password could connect an MCP client that outlived the reset.
+    tokens = await _connect(mcp, settings)
+    if how == "admin_reset":
+        admin = bearer(await login(mcp, "boss@tawasol.test"))
+        changed = await mcp.patch(
+            f"/api/v1/users/{team['rep'].id}", json={"password": "a-brand-new-pass"}, headers=admin
+        )
+    else:
+        rep = bearer(await login(mcp, "rep@tawasol.test"))
+        changed = await mcp.post(
+            "/api/v1/auth/change-password",
+            json={"current_password": TEST_PASSWORD, "new_password": "a-brand-new-pass"},
+            headers=rep,
+        )
+    assert changed.status_code in (200, 204), changed.text
+
+    assert (await _rpc(mcp, tokens["access_token"], "tools/list")).status_code == 401
+    refreshed = await mcp.post(
+        "/token",
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": tokens["refresh_token"],
+            "client_id": tokens["client_id"],
+        },
+    )
+    assert refreshed.status_code == 400
 
 
 async def test_reconnecting_replaces_the_old_connection(

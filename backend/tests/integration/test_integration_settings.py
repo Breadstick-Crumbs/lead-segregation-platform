@@ -172,6 +172,10 @@ async def test_omitted_fields_are_left_alone(api: AsyncClient, admin: dict[str, 
         ("entra_client_id", "not-a-guid"),
         ("slack_webhook_url", "https://evil.example/hook"),
         ("teams_webhook_url", "http://plain.example/hook"),
+        ("teams_webhook_url", "https://10.0.0.5/internal"),  # SSRF into the server's network
+        ("teams_webhook_url", "https://evil.example/x.logic.azure.com"),
+        ("teams_webhook_url", "https://prod-1.logic.azure.com.evil.example/workflows"),
+        ("teams_webhook_url", "https://user@prod-1.westus.logic.azure.com/workflows"),
         ("whatsapp_access_token", "has spaces in it"),
     ],
 )
@@ -180,6 +184,21 @@ async def test_invalid_values_are_refused(
 ) -> None:
     response = await api.patch(CONFIG, headers=admin, json={field: value})
     assert response.status_code == 422, response.text
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://prod-12.westeurope.logic.azure.com:443/workflows/abc/triggers/manual/paths/invoke",
+        "https://default1234.56.environment.api.powerplatform.com/powerautomate/automations/x",
+        "https://contoso.webhook.office.com/webhookb2/abc",
+    ],
+)
+async def test_teams_workflow_urls_are_accepted(
+    api: AsyncClient, admin: dict[str, str], url: str
+) -> None:
+    response = await api.patch(CONFIG, headers=admin, json={"teams_webhook_url": url})
+    assert response.status_code == 200, response.text
 
 
 async def test_only_admins_can_see_or_change_integrations(

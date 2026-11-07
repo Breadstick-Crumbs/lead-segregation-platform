@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import ValidationError
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
@@ -50,7 +51,7 @@ class SettingsAdmin:
         """The latest scored leads, rescored with the proposed weights and thresholds."""
         latest = (
             select(LeadScore.lead_id, LeadScore.breakdown)
-            .distinct(LeadScore.lead_id)
+            .ext(distinct_on(LeadScore.lead_id))
             .order_by(LeadScore.lead_id, LeadScore.created_at.desc())
             .subquery()
         )

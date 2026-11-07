@@ -120,8 +120,10 @@ on localhost: the SDK refuses to start with a plain-http public issuer.
 **Transport security:** DNS-rebinding protection is off. It exists for unauthenticated
 servers on localhost, while every call here carries a bearer token.
 
-**Limits:** nginx caps request bodies on these paths at 64 KB. Rate limiting for
-`/register` and `/token` is part of Phase 9.
+**Limits:** nginx caps request bodies on these paths at 64 KB. Each client address may
+register 10 clients an hour and call `/authorize`, `/token` and `/revoke` 30 times a minute
+(see `docs/SECURITY.md#rate-limiting`). Changing or resetting a password disconnects all of
+that user's AI apps.
 
 ## Testing
 

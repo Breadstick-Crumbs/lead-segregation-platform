@@ -125,6 +125,15 @@ class OAuthRepository:
             .execution_options(synchronize_session=False)
         )
 
+    async def revoke_all_grants(self, user_id: uuid.UUID, *, at: datetime) -> None:
+        """Disconnect every AI app the user has connected."""
+        await self._session.execute(
+            update(OAuthGrant)
+            .where(OAuthGrant.user_id == user_id, OAuthGrant.revoked_at.is_(None))
+            .values(revoked_at=at)
+            .execution_options(synchronize_session=False)
+        )
+
     async def revoke_grants(self, user_id: uuid.UUID, client_id: str, *, at: datetime) -> None:
         await self._session.execute(
             update(OAuthGrant)

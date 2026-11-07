@@ -13,7 +13,8 @@ leads' jobs. Jobs the seed leaves queued are removed, so a worker started afterw
 try to message the demo contacts.
 
 Idempotent: if the demo contacts exist already, nothing is added (`--reset` removes them
-first). Never run it in production.
+first). It refuses to run in production unless `--allow-production` is passed, which is only
+for a demo deployment that holds no real leads.
 """
 
 import asyncio
@@ -595,8 +596,11 @@ async def seed_demo(*, reset: bool) -> int:
 
 def main() -> None:
     settings = get_settings()
-    if settings.is_production:
-        raise SystemExit("Refusing to seed demo data in production")
+    if settings.is_production and "--allow-production" not in sys.argv:
+        raise SystemExit(
+            "Refusing to seed demo data in production (pass --allow-production for a demo "
+            "deployment with no real leads)"
+        )
     configure_logging(settings.log_level, json_logs=False)
     use_selector_event_loop_on_windows()
     count = asyncio.run(seed_demo(reset="--reset" in sys.argv))

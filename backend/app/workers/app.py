@@ -1,6 +1,6 @@
 """The Procrastinate app. Jobs live in Postgres; the worker process runs them:
 
-    uv run procrastinate --app=app.workers.app.app worker
+    uv run procrastinate --app=app.workers.worker.app worker
 
 The API never opens this app's connection pool: it enqueues on the request's own database
 connection (see `app.workers.queue`), so a job commits or rolls back with the data it refers to.

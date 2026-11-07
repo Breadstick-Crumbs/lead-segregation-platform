@@ -12,6 +12,7 @@ from app.core.logging import get_logger
 from app.core.security import hash_password_async, verify_password_async
 from app.models import User
 from app.models.enums import Role
+from app.repositories.oauth import OAuthRepository
 from app.repositories.users import RefreshTokenRepository, UserRepository
 from app.schemas.user import PasswordChange, UserCreate, UserUpdate
 
@@ -23,6 +24,7 @@ class UserService:
         self._session = session
         self._users = UserRepository(session)
         self._tokens = RefreshTokenRepository(session)
+        self._oauth = OAuthRepository(session)
 
     async def list_users(self, *, active_only: bool = False) -> Sequence[User]:
         return await self._users.list_all(active_only=active_only)
@@ -79,7 +81,11 @@ class UserService:
             user.password_hash = await hash_password_async(data.password)
             sign_out = True
         if sign_out:
-            await self._tokens.revoke_all_for_user(user.id, at=datetime.now(UTC))
+            # AI apps too: a reset usually means the password leaked, and whoever had it may
+            # have connected their own MCP client.
+            now = datetime.now(UTC)
+            await self._tokens.revoke_all_for_user(user.id, at=now)
+            await self._oauth.revoke_all_grants(user.id, at=now)
 
         await self._session.commit()
         logger.info("user_updated", user_id=str(user.id), actor_id=str(actor.id))
@@ -88,12 +94,13 @@ class UserService:
     async def change_own_password(
         self, user: User, data: PasswordChange, *, keep_session_family: uuid.UUID | None
     ) -> None:
-        """Change the caller's password and sign out every *other* session."""
+        """Change the caller's password, sign out every *other* session and disconnect their
+        AI apps (they reconnect with one consent)."""
         if not await verify_password_async(data.current_password, user.password_hash):
             raise AuthenticationError("Current password is incorrect")
         user.password_hash = await hash_password_async(data.new_password)
-        await self._tokens.revoke_all_for_user(
-            user.id, at=datetime.now(UTC), keep_family=keep_session_family
-        )
+        now = datetime.now(UTC)
+        await self._tokens.revoke_all_for_user(user.id, at=now, keep_family=keep_session_family)
+        await self._oauth.revoke_all_grants(user.id, at=now)
         await self._session.commit()
         logger.info("password_changed", user_id=str(user.id))

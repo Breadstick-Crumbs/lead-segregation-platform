@@ -6,6 +6,8 @@ import sys
 
 import structlog
 
+from app.core.observability import report_errors_to_sentry
+
 
 def _make_stdout_unicode_safe() -> None:
     # Windows consoles default to cp1252; an unencodable character in a log line (e.g. in a
@@ -27,11 +29,14 @@ def configure_logging(level: str, *, json_logs: bool) -> None:
         if json_logs
         else structlog.dev.ConsoleRenderer(exception_formatter=structlog.dev.plain_traceback)
     )
-    if json_logs:
-        shared_processors.append(structlog.processors.format_exc_info)
+    exc_processors: list[structlog.types.Processor] = (
+        [structlog.processors.format_exc_info] if json_logs else []
+    )
 
     structlog.configure(
-        processors=[*shared_processors, renderer],
+        # Sentry reporting (a no-op unless it is initialised) sees the exception before it is
+        # rendered to text. Standard-library errors reach Sentry through its own integration.
+        processors=[*shared_processors, report_errors_to_sentry, *exc_processors, renderer],
         wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(level.upper())),
         cache_logger_on_first_use=True,
     )
@@ -42,7 +47,7 @@ def configure_logging(level: str, *, json_logs: bool) -> None:
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(
         structlog.stdlib.ProcessorFormatter(
-            foreign_pre_chain=shared_processors,
+            foreign_pre_chain=[*shared_processors, *exc_processors],
             processors=[structlog.stdlib.ProcessorFormatter.remove_processors_meta, renderer],
         )
     )

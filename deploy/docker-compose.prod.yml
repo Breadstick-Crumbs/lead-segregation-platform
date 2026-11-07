@@ -1,0 +1,104 @@
+# Production stack for the Hetzner server, run from /opt/lead-platform (see docs/DEPLOYMENT.md):
+#
+#   docker compose -f deploy/docker-compose.prod.yml --env-file deploy/compose.env up -d --build
+#
+# The existing Caddy (owner of :80/:443) reaches `leads-api` and `leads-web` over the
+# external `edge` network and terminates TLS. Postgres and the worker stay on `internal`,
+# which has no route to the outside world's ports; nothing here publishes a port.
+name: lead-platform
+
+x-backend: &backend
+  image: ${IMAGE_PREFIX:-lead-platform}-api:${IMAGE_TAG:-latest}
+  # On every backend service, so `up --build` never tries to pull a locally built image.
+  build:
+    context: ../backend
+    args: { APP_RELEASE: "${IMAGE_TAG:-latest}" }
+  restart: unless-stopped
+  env_file: [./backend.env]
+  environment:
+    ENVIRONMENT: production
+    DATABASE_URL: postgresql+psycopg://leads:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in compose.env}@postgres:5432/leads
+    APP_RELEASE: ${IMAGE_TAG:-latest}
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  logging: &logging
+    driver: json-file
+    options: { max-size: "10m", max-file: "5" }
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.7-pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: leads
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in compose.env}
+      POSTGRES_DB: leads
+    volumes: [pgdata:/var/lib/postgresql/data]
+    networks: [internal]
+    shm_size: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leads -d leads"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    logging: *logging
+
+  # One-shot: applies migrations, then the API and worker start.
+  migrate:
+    <<: *backend
+    restart: "no"
+    command: ["alembic", "upgrade", "head"]
+    networks: [internal]
+    healthcheck: { disable: true }
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    <<: *backend
+    networks:
+      # nginx (web) proxies to this unique name; on `edge`, Caddy uses `leads-api`.
+      internal: { aliases: [lead-platform-api] }
+      edge: { aliases: [leads-api] }
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  worker:
+    <<: *backend
+    command: ["procrastinate", "--app=app.workers.worker.app", "worker"]
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "procrastinate", "--app=app.workers.worker.app", "healthchecks"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  web:
+    image: ${IMAGE_PREFIX:-lead-platform}-web:${IMAGE_TAG:-latest}
+    build:
+      context: ../frontend
+      args:
+        VITE_SENTRY_DSN: "${VITE_SENTRY_DSN:-}"
+        VITE_APP_RELEASE: "${IMAGE_TAG:-latest}"
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    networks:
+      internal: {}
+      edge: { aliases: [leads-web] }
+    depends_on: [api]
+    logging: *logging
+
+networks:
+  internal: {}
+  # Created by the server's Caddy stack; this stack only joins it.
+  edge:
+    external: true
+
+volumes:
+  pgdata:

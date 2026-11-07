@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     reporting_timezone: str = "Asia/Dubai"
 
     sentry_dsn: str | None = None
+    sentry_traces_sample_rate: float = Field(default=0.0, ge=0.0, le=1.0)
+    # Tags Sentry events with the deployed build; the production images set it to the commit.
+    app_release: str | None = None
 
     # Used only by `python -m app.scripts.seed`.
     seed_admin_email: str = "admin@tawasol.test"
@@ -83,6 +86,7 @@ class Settings(BaseSettings):
         "whatsapp_app_secret",
         "whatsapp_verify_token",
         "sentry_dsn",
+        "app_release",
         "slack_webhook_url",
         "teams_webhook_url",
         "seed_admin_password",

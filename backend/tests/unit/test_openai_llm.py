@@ -220,3 +220,19 @@ def test_sender_fields_cannot_add_fact_lines_or_tags() -> None:
     assert sum(line.startswith("Corporate email domain:") for line in lines) == 1
     assert sum(line.startswith("Sender name:") for line in lines) == 1
     assert prompt.count("</message>") == 1
+
+
+async def test_api_error_messages_never_repeat_the_providers_text() -> None:
+    # Regression: the message is stored on the lead and shown to every rep.
+    provider_text = "Incorrect API key provided: sk-proj-abc***xyz. req_123 org-secret"
+    transport = httpx2.MockTransport(
+        lambda _: httpx2.Response(401, json={"error": {"message": provider_text}})
+    )
+    embedder = OpenAIEmbedder(_settings(), transport=transport)
+    embedder._client = embedder._client.with_options(max_retries=0)
+
+    with pytest.raises(AIError) as raised:
+        await embedder.embed("hello")
+
+    assert str(raised.value) == "OpenAI returned HTTP 401"
+    assert not raised.value.retryable

@@ -29,3 +29,12 @@ class AuthenticationError(AppError):
 class PermissionDeniedError(AppError):
     status_code = 403
     code = "forbidden"
+
+
+class RateLimitedError(AppError):
+    status_code = 429
+    code = "rate_limited"
+
+    def __init__(self, message: str, *, retry_after_seconds: int) -> None:
+        super().__init__(message)
+        self.retry_after_seconds = retry_after_seconds

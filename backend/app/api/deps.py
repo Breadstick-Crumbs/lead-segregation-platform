@@ -2,12 +2,13 @@
 
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.core.errors import AuthenticationError, NotFoundError, PermissionDeniedError
+from app.core.rate_limit import RateLimiter
 from app.core.security import AccessTokenClaims, decode_access_token
 from app.db.session import SessionFactory, get_session
 from app.integrations.microsoft_entra import EntraClient
@@ -30,6 +31,14 @@ async def get_effective_settings(session: SessionDep, base: EnvSettingsDep) -> S
 SettingsDep = Annotated[Settings, Depends(get_effective_settings)]
 
 _bearer = HTTPBearer(auto_error=False)
+
+
+def get_rate_limiter(request: Request) -> RateLimiter:
+    limiter: RateLimiter = request.app.state.rate_limiter
+    return limiter
+
+
+RateLimiterDep = Annotated[RateLimiter, Depends(get_rate_limiter)]
 
 
 async def get_current_user(

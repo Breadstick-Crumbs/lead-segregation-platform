@@ -1,0 +1,22 @@
+# Lead Segregation Platform: copy to /etc/caddy/sites/leads.caddy on the server. The
+# existing Caddyfile loads it with `import /etc/caddy/sites/*.caddy`. Caddy issues and
+# renews the certificate itself (the Cloudflare record is DNS only, not proxied).
+leads.bricbybric.ae {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	# The API directly, so the live notification stream isn't buffered twice. Not
+	# compressed: an encoder would hold small SSE events back until it flushes.
+	handle /api/* {
+		reverse_proxy leads-api:8000 {
+			flush_interval -1
+		}
+	}
+	# The dashboard; its nginx also forwards /mcp and the OAuth paths to the API.
+	handle {
+		encode zstd gzip
+		reverse_proxy leads-web:8080
+	}
+}

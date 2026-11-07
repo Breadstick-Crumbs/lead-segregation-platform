@@ -1,5 +1,6 @@
 """Public webhook endpoints. Authenticated by signature, not by user login."""
 
+import hmac
 import json
 from typing import Annotated, Any
 
@@ -53,7 +54,10 @@ async def verify_whatsapp_webhook(
     expected = settings.whatsapp_verify_token
     if expected is None:
         raise WebhookNotConfiguredError("WHATSAPP_VERIFY_TOKEN is not configured")
-    if mode != "subscribe" or token != expected.get_secret_value() or challenge is None:
+    matches = token is not None and hmac.compare_digest(
+        token.encode(), expected.get_secret_value().encode()
+    )
+    if mode != "subscribe" or not matches or challenge is None:
         raise PermissionDeniedError("Webhook verification failed")
     return challenge
 

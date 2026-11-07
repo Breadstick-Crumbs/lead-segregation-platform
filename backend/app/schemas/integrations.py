@@ -3,6 +3,7 @@
 import re
 import uuid
 from typing import Annotated, Literal
+from urllib.parse import urlsplit
 
 from pydantic import AfterValidator, BaseModel, Field, SecretStr
 
@@ -55,6 +56,29 @@ def _https_url(prefixes: tuple[str, ...]) -> AfterValidator:
     return AfterValidator(check)
 
 
+# Where Teams "Workflows" (Power Automate) and legacy incoming webhooks live. The URL is
+# posted to from inside the server, so an arbitrary host would let an admin session probe
+# internal services (SSRF).
+TEAMS_WEBHOOK_HOSTS = (".logic.azure.com", ".powerplatform.com", ".webhook.office.com")
+
+
+def _teams_url(value: SecretStr) -> SecretStr:
+    parts = urlsplit(value.get_secret_value())
+    host = (parts.hostname or "").lower()
+    if (
+        parts.scheme != "https"
+        or parts.username is not None
+        or parts.port not in (None, 443)
+        or not host.endswith(TEAMS_WEBHOOK_HOSTS)
+    ):
+        raise ValueError(
+            "Expected a Teams Workflows webhook URL (https on "
+            + ", ".join(f"*{h}" for h in TEAMS_WEBHOOK_HOSTS)
+            + ")"
+        )
+    return value
+
+
 def _token(value: SecretStr) -> SecretStr:
     raw = value.get_secret_value()
     if not raw or re.search(r"\s", raw):
@@ -80,7 +104,7 @@ class IntegrationUpdate(BaseModel):
         | None
     ) = None
     teams_webhook_url: (
-        Annotated[SecretStr, Field(max_length=1000), _https_url(("https://",))] | None
+        Annotated[SecretStr, Field(max_length=1000), AfterValidator(_teams_url)] | None
     ) = None
     entra_tenant_id: Annotated[str, AfterValidator(_guid)] | None = None
     entra_client_id: Annotated[str, AfterValidator(_guid)] | None = None

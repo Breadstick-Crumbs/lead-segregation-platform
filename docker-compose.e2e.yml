@@ -1,0 +1,28 @@
+# The end-to-end test stack: the dev stack with fixed test settings, its own database and
+# only the dashboard published (on :8098), so it runs beside a dev stack. Started and seeded
+# by frontend/e2e/stack.sh; nothing here is a real credential.
+x-e2e-env: &e2e-env
+  ENVIRONMENT: development
+  DATABASE_URL: postgresql+psycopg://leads:leads@postgres:5432/leads
+  FRONTEND_URL: http://localhost:8098
+  CORS_ORIGINS: '["http://localhost:8098"]'
+  OPENAI_API_KEY: ""  # leads from the webhook stay unscored; no paid calls in tests
+  WHATSAPP_PHONE_NUMBER_ID: "109876543210"
+  WHATSAPP_APP_SECRET: e2e-app-secret
+  WHATSAPP_VERIFY_TOKEN: e2e-verify-token
+  SEED_ADMIN_EMAIL: admin@tawasol.test
+  SEED_ADMIN_PASSWORD: e2e-admin-password
+  SEED_DEMO_PASSWORD: e2e-demo-password
+
+services:
+  postgres:
+    ports: !reset []
+  api:
+    env_file: !reset []
+    environment: *e2e-env
+    ports: !reset []
+  worker:
+    env_file: !reset []
+    environment: *e2e-env
+  web:
+    ports: !override ["8098:8080"]

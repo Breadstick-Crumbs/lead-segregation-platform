@@ -21,8 +21,11 @@ from openai import (
 from pydantic import ValidationError
 
 from app.core.config import Settings
+from app.core.logging import get_logger
 from app.models.lead import EMBEDDING_DIMENSIONS
 from app.schemas.analysis import LeadAnalysis, LeadContext
+
+logger = get_logger(__name__)
 
 PROMPT_VERSION = "2026-11-06.1"
 MESSAGE_CHARS = 4000  # per message
@@ -151,17 +154,24 @@ def _client(settings: Settings, transport: httpx2.AsyncBaseTransport | None) -> 
             max_retries=REQUEST_RETRIES,
         )
     except OpenAIError as exc:  # rejected configuration: retrying can't help
-        raise AIError(str(exc), retryable=False) from exc
+        logger.warning("openai_client_rejected", error=str(exc)[:500])
+        raise AIError("The OpenAI client configuration was rejected", retryable=False) from exc
 
 
 def _api_error(exc: Exception) -> AIError:
-    if isinstance(exc, RateLimitError | APIConnectionError):
-        return AIError(str(exc), retryable=True)
+    # The message is stored on the lead and shown to every rep, so it names the failure but
+    # never repeats the provider's text (request IDs, organisation, a masked key on a 401).
+    # The full error goes to the log, which only operators read.
+    logger.warning("openai_request_failed", error_type=type(exc).__name__, error=str(exc)[:500])
+    if isinstance(exc, RateLimitError):
+        return AIError("OpenAI rate limit reached", retryable=True)
+    if isinstance(exc, APIConnectionError):
+        return AIError("Could not reach OpenAI", retryable=True)
     if isinstance(exc, APIStatusError):
         retryable = exc.status_code in _RETRYABLE_STATUSES or exc.response.is_server_error
-        return AIError(str(exc), retryable=retryable)
+        return AIError(f"OpenAI returned HTTP {exc.status_code}", retryable=retryable)
     # Truncated, filtered or schema-invalid output: a fresh attempt may well succeed.
-    return AIError(f"{type(exc).__name__}: {exc}", retryable=True)
+    return AIError(f"The model's answer was unusable ({type(exc).__name__})", retryable=True)
 
 
 class OpenAILeadAnalyzer:

@@ -3,3 +3,5 @@ node_modules
 pnpm-lock.yaml
 src/api/generated.ts
 openapi.json
+test-results
+playwright-report

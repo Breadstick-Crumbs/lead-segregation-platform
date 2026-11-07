@@ -23,3 +23,12 @@ dist/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Deployment (real values live only on the server)
+deploy/*.env
+deploy/backups/
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/
+frontend/e2e/.auth/

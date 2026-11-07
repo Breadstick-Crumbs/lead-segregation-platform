@@ -1,2 +1,7 @@
 node_modules
 dist
+.vite
+coverage
+e2e/.auth
+test-results
+playwright-report
