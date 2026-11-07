@@ -1,0 +1,6 @@
+# Files that run inside Linux containers or shells must keep LF endings on Windows checkouts.
+*.sh text eol=lf
+*.caddy text eol=lf
+*.conf text eol=lf
+Dockerfile text eol=lf
+*.env.example text eol=lf

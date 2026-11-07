@@ -2,7 +2,11 @@
 
 Production runs on the personal Hetzner server at **https://leads.bricbybric.ae**, behind
 the Caddy that already serves the server's other apps. Everything needed is in `deploy/`.
-The runbook below is step by step; nothing in it has been run against the server yet.
+The runbook below is step by step.
+
+**Status:** deployed on 2026-11-07 from commit `93df879` (PR #10, before it was merged).
+The code was copied with `git -c core.autocrlf=false archive HEAD | ssh … tar -x` rather
+than cloned, and the demo data was seeded. Backups run nightly at 03:15 UTC.
 
 ## Target: personal Hetzner server
 
@@ -77,6 +81,11 @@ If the network that Caddy uses has a different name, change `edge` in
 no `import` line, paste the contents of `deploy/leads.caddy` into it instead of step 4.
 
 ### 2. Get the code and write the settings
+
+The repository is private, so either clone it with a deploy key, or copy a commit from a
+checkout with `git -c core.autocrlf=false archive HEAD | ssh root@server 'mkdir -p
+/opt/lead-platform && tar -xC /opt/lead-platform'`. Turning off autocrlf stops a Windows
+checkout from giving the scripts CRLF endings.
 
 ```bash
 sudo mkdir -p /opt/lead-platform && sudo chown "$USER" /opt/lead-platform
